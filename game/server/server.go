@@ -1,6 +1,8 @@
 package server
 
 import (
+	"net"
+	"strings"
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
@@ -21,6 +23,10 @@ type GameServer struct {
 	lastUpdate time.Time
 }
 
+func (s *GameServer) Addr() *net.TCPAddr {
+	return s.tcp.addr
+}
+
 func (s *GameServer) Ready() bool {
 	return s.tcp.Ready()
 }
@@ -32,19 +38,8 @@ func (s *GameServer) RunBackground() {
 }
 
 func (s *GameServer) Run() {
-	go func() {
-		s.tcp.Listen()
-	}()
-
-	for {
-		if s.Ready() {
-			s.broadcastState()
-			break
-		}
-
-		time.Sleep(time.Second / 10)
-	}
-
+	s.tcp.Listen()
+	s.broadcastState()
 	for {
 		s.Update()
 	}
@@ -63,13 +58,13 @@ func (s *GameServer) Update() {
 		}
 
 		if *pressedKey == rune('w') {
-			s.game.ChangeDirection(0, game.North)
+			s.game.ChangeDirection(connIndex, game.North)
 		} else if *pressedKey == rune('s') {
-			s.game.ChangeDirection(0, game.South)
+			s.game.ChangeDirection(connIndex, game.South)
 		} else if *pressedKey == rune('a') {
-			s.game.ChangeDirection(0, game.West)
+			s.game.ChangeDirection(connIndex, game.West)
 		} else if *pressedKey == rune('d') {
-			s.game.ChangeDirection(0, game.East)
+			s.game.ChangeDirection(connIndex, game.East)
 		} else if *pressedKey == rune('↵') {
 			s.game.Reset()
 		}
@@ -86,15 +81,15 @@ func (s *GameServer) broadcastState() {
 }
 
 func SerializeState(g game.Game) string {
-	serializedState := ""
+	var sb strings.Builder
 
 	var x, y uint16
 	for y = 1; y <= g.Height(); y++ {
 		for x = 1; x <= g.Width(); x++ {
-			serializedState += string(g.Field(game.Position{Y: uint16(y), X: uint16(x)}))
+			sb.WriteString(string(g.Field(game.Position{Y: uint16(y), X: uint16(x)})))
 		}
-		serializedState += "|"
+		sb.WriteRune('|')
 	}
 
-	return serializedState
+	return sb.String()
 }

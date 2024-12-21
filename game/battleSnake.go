@@ -3,19 +3,25 @@ package game
 import "math/rand/v2"
 
 type battleSnake struct {
-	width   uint16
-	height  uint16
+	level   int
+	gameMap *Map
 	state   GameState
 	scores  []int
 	players []snake
 	candies []Position
 }
 
-func NewBattleSnake(width int, height int) battleSnake {
-	return battleSnake{
-		width:   uint16(width),
-		height:  uint16(height),
-		players: []snake{newSnake(5, 5, East), newSnake(20, 20, West)},
+func NewBattleSnake(player, width, height int) *battleSnake {
+	var players []snake
+
+	for i := 1; i <= player; i++ {
+		players = append(players, newSnake(uint16(i*5), uint16(i*5), East))
+	}
+
+	return &battleSnake{
+		level:   1,
+		gameMap: NewMap(1, uint16(width), uint16(height)),
+		players: players,
 		scores:  []int{0, 0},
 		candies: []Position{{
 			Y: uint16(rand.N(height-2) + 1),
@@ -29,11 +35,11 @@ func (game *battleSnake) State() GameState {
 }
 
 func (game *battleSnake) Height() uint16 {
-	return game.height
+	return game.gameMap.Height()
 }
 
 func (game *battleSnake) Width() uint16 {
-	return game.width
+	return game.gameMap.Width()
 }
 
 func (game *battleSnake) Reset() {
@@ -43,11 +49,7 @@ func (game *battleSnake) Reset() {
 }
 
 func (game *battleSnake) Field(position Position) Field {
-	if position.X == 0 || position.X >= game.width-1 {
-		return Wall
-	}
-
-	if position.Y == 0 || position.Y >= game.height-1 {
+	if game.gameMap.IsWall(position) {
 		return Wall
 	}
 
@@ -112,8 +114,14 @@ func (game *battleSnake) ChangeDirection(playerIndex int, direction direction) {
 }
 
 func (game *battleSnake) randomPosition() Position {
-	return Position{
-		Y: uint16(rand.N(game.height-2) + 1),
-		X: uint16(rand.N(game.width-2) + 1),
+	for {
+		pos := Position{
+			Y: uint16(rand.N(game.gameMap.Height()-2) + 1),
+			X: uint16(rand.N(game.gameMap.Width()-2) + 1),
+		}
+
+		if !game.gameMap.IsWall(pos) {
+			return pos
+		}
 	}
 }

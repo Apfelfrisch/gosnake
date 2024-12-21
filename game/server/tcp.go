@@ -11,7 +11,7 @@ func NewTcpSever(addr string, connCount int) *Tcp {
 	var inputChans []chan rune
 
 	for i := 0; i < connCount; i++ {
-		inputChans = append(inputChans, make(chan rune, 1))
+		inputChans = append(inputChans, make(chan rune, 3))
 	}
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", addr)
@@ -37,19 +37,6 @@ func (s *Tcp) Ready() bool {
 	return len(s.inputChans) == len(s.conns)
 }
 
-// func (s *TcpServer) IsKeyPressed(connIndex int, key rune) bool {
-// 	select {
-// 	case value := <-s.inputChans[connIndex]:
-// 		if value == key {
-// 			return true
-// 		}
-// 	default:
-// 		return false
-// 	}
-
-// 	return false
-// }
-
 func (s *Tcp) ReadConn(connIndex int) *rune {
 	select {
 	case value := <-s.inputChans[connIndex]:
@@ -72,25 +59,25 @@ func (s *Tcp) Broadcast(content string) {
 
 func (s *Tcp) Listen() {
 	listener, err := net.ListenTCP("tcp", s.addr)
+	defer listener.Close()
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for i, inputChan := range s.inputChans {
+	for _, inputChan := range s.inputChans {
 		// Accept new connections
 		conn, err := listener.Accept()
 		s.conns = append(s.conns, conn)
 
-		fmt.Printf("Connection accepted [%v] \n", i)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal("Could not connect: " + err.Error())
 		}
 		// Handle new connections in a Goroutine for concurrency
 		go handleSeverReading(conn, inputChan)
-		go handleServerWriting(conn, s.broadcastChan)
 	}
 
-	listener.Close()
+	go handleServerWriting(s.conns, s.broadcastChan)
 }
 
 func (s *Tcp) Shutdown() {
@@ -109,9 +96,7 @@ func handleSeverReading(conn net.Conn, inputChan chan rune) {
 		}
 
 		select {
-		// Try to write to the channel
 		case inputChan <- data:
-		// Otherwise clear channel
 		default:
 			<-inputChan
 			inputChan <- data
@@ -119,10 +104,12 @@ func handleSeverReading(conn net.Conn, inputChan chan rune) {
 	}
 }
 
-func handleServerWriting(conn net.Conn, broadcastChan chan [1]string) {
+func handleServerWriting(conns []net.Conn, broadcastChan chan [1]string) {
 	for {
 		message := <-broadcastChan
 
-		conn.Write([]byte(message[0]))
+		for _, conn := range conns {
+			conn.Write([]byte(message[0]))
+		}
 	}
 }

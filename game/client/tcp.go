@@ -16,7 +16,7 @@ func NewTcpClient(addr string) *Tcp {
 	return &Tcp{
 		server:     tcpAddr,
 		inputChan:  make(chan [1]string, 1),
-		outputChan: make(chan [1]rune, 1),
+		outputChan: make(chan rune, 3),
 	}
 }
 
@@ -25,19 +25,21 @@ type Tcp struct {
 	conn       *net.TCPConn
 	input      string
 	inputChan  chan [1]string
-	outputChan chan [1]rune
+	outputChan chan rune
 }
 
-func (c *Tcp) Connect() {
+func (c *Tcp) Connect() error {
 	var err error
 	c.conn, err = net.DialTCP("tcp4", nil, c.server)
 
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	go handleClientReading(c.conn, c.inputChan)
 	go handleClientWriting(c.conn, c.outputChan)
+
+	return nil
 }
 
 // Blocking or not, thats the question
@@ -55,11 +57,11 @@ func (c *Tcp) Read() string {
 func (c *Tcp) Write(char rune) {
 	select {
 	// Try to write to the channel
-	case c.outputChan <- [1]rune{char}:
+	case c.outputChan <- char:
 	// Otherwise clear channel
 	default:
 		<-c.outputChan
-		c.outputChan <- [1]rune{char}
+		c.outputChan <- char
 	}
 }
 
@@ -83,11 +85,11 @@ func handleClientReading(conn net.Conn, inputChan chan [1]string) {
 	}
 }
 
-func handleClientWriting(conn net.Conn, outputChan chan [1]rune) {
+func handleClientWriting(conn net.Conn, outputChan chan rune) {
 	for {
 		message := <-outputChan
 
 		// Write back the same message to the client.
-		conn.Write([]byte(string(message[0])))
+		conn.Write([]byte(string(message)))
 	}
 }

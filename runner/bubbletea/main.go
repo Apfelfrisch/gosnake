@@ -1,9 +1,10 @@
 package main
 
 import (
+	"os"
 	"time"
 
-	"github.com/apfelfrisch/gosnake/game"
+	gclient "github.com/apfelfrisch/gosnake/game/client"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -31,28 +32,21 @@ func (m gameModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "enter":
-			if m.game.State() == game.Finished {
-				m.game.Reset()
-			}
+			//
 		case "up":
-			m.game.ChangeDirection(0, game.North)
-		case "down":
-			m.game.ChangeDirection(0, game.South)
-		case "left":
-			m.game.ChangeDirection(0, game.West)
-		case "right":
-			m.game.ChangeDirection(0, game.East)
 		case "w":
-			m.game.ChangeDirection(1, game.North)
-		case "a":
-			m.game.ChangeDirection(1, game.West)
+			m.client.Write('w')
+		case "down":
 		case "s":
-			m.game.ChangeDirection(1, game.South)
+			m.client.Write('s')
+		case "left":
+		case "a":
+			m.client.Write('a')
+		case "right":
 		case "d":
-			m.game.ChangeDirection(1, game.East)
+			m.client.Write('d')
 		}
 	case time.Time:
-		m.game.Tick()
 		return m, tick(time.Millisecond * 100)
 	}
 
@@ -62,29 +56,46 @@ func (m gameModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m gameModel) View() string {
 	view := ""
 
-	var x, y uint16
-
-	for y = 1; y <= m.game.Height(); y++ {
-		for x = 1; x <= m.game.Width(); x++ {
-			view += " " + string(m.game.Field(
-				game.Position{Y: uint16(y), X: uint16(x)},
-			))
+	for _, fieldPos := range gclient.DeserializeState(m.client.Read()) {
+		if fieldPos.X == 1 && view != "" {
+			view += "\n"
 		}
-		view += "\n"
+
+		view += " " + string(fieldPos.Field)
 	}
 
 	return view
 }
 
 type gameModel struct {
-	game game.Game
+	client *gclient.Tcp
 }
 
 func main() {
-	g := game.NewSingle(50, 30)
+	client := connectClient(os.Args[1])
 
-	tui := tea.NewProgram(gameModel{game: g})
+	tui := tea.NewProgram(gameModel{client})
 	tea.ClearScreen()
 
 	tui.Run()
+}
+
+func connectClient(addr string) *gclient.Tcp {
+	client := gclient.NewTcpClient(addr)
+
+	for i := 0; i < 10; i++ {
+		if err := client.Connect(); err == nil {
+			break
+		}
+		time.Sleep(time.Second / 5)
+	}
+
+	for {
+		if client.Read() != "" {
+			break
+		}
+		time.Sleep(time.Second / 10)
+	}
+
+	return client
 }
