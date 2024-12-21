@@ -98,7 +98,7 @@ func (game *battleSnake) Tick() {
 		}
 
 		// Snake gets Candy
-		if candyIndex := player.head().getCollision(game.candies); candyIndex == nil {
+		if candyIndex := player.head().getCollision(game.candies); candyIndex != nil {
 			player.grows += 5
 			game.candies[*candyIndex] = game.randomPosition()
 		}

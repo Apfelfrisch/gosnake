@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
+	gclient "github.com/apfelfrisch/gosnake/game/client"
+	gserver "github.com/apfelfrisch/gosnake/game/server"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
@@ -18,41 +20,28 @@ const (
 )
 
 type Engine struct {
-	game       game.Game
-	lastUpdate time.Time
+	client gclient.Tcp
 }
 
 func (e *Engine) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) {
-		e.game.ChangeDirection(0, game.North)
+		e.client.Write('w')
 	} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
-		e.game.ChangeDirection(0, game.South)
+		e.client.Write('s')
 	} else if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
-		e.game.ChangeDirection(0, game.West)
+		e.client.Write('a')
 	} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
-		e.game.ChangeDirection(0, game.East)
+		e.client.Write('d')
 	} else if ebiten.IsKeyPressed(ebiten.KeyEnter) {
-		if e.game.State() == game.Finished {
-			e.game.Reset()
-		}
+		e.client.Write('↵')
 	}
-
-	if time.Since(e.lastUpdate) < gameSpeed {
-		return nil
-	}
-
-	e.game.Tick()
-	e.lastUpdate = time.Now()
 
 	return nil
 }
 
 func (e *Engine) Draw(screen *ebiten.Image) {
-	var x, y uint16
-	for y = 1; y <= e.game.Height(); y++ {
-		for x = 1; x <= e.game.Width(); x++ {
-			drawField(screen, e.game.Field(game.Position{Y: uint16(y), X: uint16(x)}), x, y)
-		}
+	for _, fieldPos := range gclient.DeserializeState(e.client.Read()) {
+		drawField(screen, fieldPos.Field, fieldPos.X, fieldPos.Y)
 	}
 }
 
@@ -84,9 +73,29 @@ func drawField(screen *ebiten.Image, field game.Field, x uint16, y uint16) {
 
 func main() {
 	ebiten.SetWindowSize(displayWidth, displayHeight)
-	ebiten.SetWindowTitle("Hello, World!")
+	ebiten.SetWindowTitle("Snake")
 
-	if err := ebiten.RunGame(&Engine{game: game.NewSingle(displayWidth/gridSize, displayHeight/gridSize)}); err != nil {
+	server := gserver.New(
+		1,
+		":1200",
+		game.NewSingle(displayWidth/gridSize, displayHeight/gridSize),
+	)
+	server.RunBackground()
+
+	time.Sleep(time.Second)
+	engine := Engine{
+		client: *gclient.NewTcpClient(":1200"),
+	}
+	engine.client.Connect()
+
+	for {
+		if server.Ready() {
+			break
+		}
+		time.Sleep(time.Second / 10)
+	}
+
+	if err := ebiten.RunGame(&engine); err != nil {
 		log.Fatal(err)
 	}
 }

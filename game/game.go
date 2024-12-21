@@ -40,6 +40,11 @@ type Position struct {
 	X uint16
 }
 
+type FieldPos struct {
+	Field
+	Position
+}
+
 func (self Position) getCollision(others []Position) *int {
 	for index, other := range others {
 		if self.X == other.X && self.Y == other.Y {
