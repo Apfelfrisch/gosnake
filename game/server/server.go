@@ -40,9 +40,13 @@ func (s *GameServer) RunBackground() {
 func (s *GameServer) Run() {
 	s.tcp.Listen()
 	s.broadcastState()
-	for {
+
+	for s.Ready() {
 		s.Update()
 	}
+
+	// Reslisten for new Connections
+	s.Run()
 }
 
 func (s *GameServer) Update() {
@@ -51,7 +55,7 @@ func (s *GameServer) Update() {
 		return
 	}
 
-	for connIndex := range s.tcp.conns {
+	for connIndex := range s.tcp.conns.get() {
 		pressedKey := s.tcp.ReadConn(connIndex)
 
 		if pressedKey == nil {

@@ -2,9 +2,13 @@ package server
 
 import (
 	"bufio"
-	"fmt"
+	"bytes"
+	"encoding/binary"
 	"log"
 	"net"
+	"sync"
+
+	"github.com/golang/snappy"
 )
 
 func NewTcpSever(addr string, connCount int) *Tcp {
@@ -30,11 +34,11 @@ type Tcp struct {
 	addr          *net.TCPAddr
 	inputChans    []chan rune
 	broadcastChan chan [1]string
-	conns         []net.Conn
+	conns         tcpConns
 }
 
 func (s *Tcp) Ready() bool {
-	return len(s.inputChans) == len(s.conns)
+	return len(s.inputChans) == s.conns.count()
 }
 
 func (s *Tcp) ReadConn(connIndex int) *rune {
@@ -68,30 +72,29 @@ func (s *Tcp) Listen() {
 	for _, inputChan := range s.inputChans {
 		// Accept new connections
 		conn, err := listener.Accept()
-		s.conns = append(s.conns, conn)
+		s.conns.add(conn)
 
 		if err != nil {
 			log.Fatal("Could not connect: " + err.Error())
 		}
+
 		// Handle new connections in a Goroutine for concurrency
-		go handleSeverReading(conn, inputChan)
+		go s.handleSeverReading(conn, inputChan)
 	}
 
-	go handleServerWriting(s.conns, s.broadcastChan)
+	go s.handleServerWriting(s.broadcastChan)
 }
 
 func (s *Tcp) Shutdown() {
-	for _, conn := range s.conns {
-		conn.Close()
-	}
+	s.conns.reset()
 }
 
-func handleSeverReading(conn net.Conn, inputChan chan rune) {
+func (s *Tcp) handleSeverReading(conn net.Conn, inputChan chan rune) {
 	for {
 		// Read from the connection untill a new line is send
 		data, _, err := bufio.NewReader(conn).ReadRune()
 		if err != nil {
-			fmt.Println(err)
+			s.Shutdown()
 			return
 		}
 
@@ -104,12 +107,45 @@ func handleSeverReading(conn net.Conn, inputChan chan rune) {
 	}
 }
 
-func handleServerWriting(conns []net.Conn, broadcastChan chan [1]string) {
+func (s *Tcp) handleServerWriting(broadcastChan chan [1]string) {
 	for {
 		message := <-broadcastChan
+		compressed := snappy.Encode(nil, []byte(message[0]))
 
-		for _, conn := range conns {
-			conn.Write([]byte(message[0]))
+		var lengthBuffer bytes.Buffer
+		binary.Write(&lengthBuffer, binary.BigEndian, uint32(len(compressed)))
+
+		for _, conn := range s.conns.get() {
+			conn.Write(lengthBuffer.Bytes())
+			conn.Write(compressed)
 		}
 	}
+}
+
+type tcpConns struct {
+	conns []net.Conn
+	mu    sync.Mutex
+}
+
+func (tc *tcpConns) add(conn net.Conn) {
+	tc.mu.Lock()
+	tc.conns = append(tc.conns, conn)
+	tc.mu.Unlock()
+}
+
+func (tc *tcpConns) count() int {
+	return len(tc.conns)
+}
+
+func (tc *tcpConns) get() []net.Conn {
+	return tc.conns
+}
+
+func (tc *tcpConns) reset() {
+	tc.mu.Lock()
+	for _, conn := range tc.conns {
+		conn.Close()
+	}
+	tc.conns = []net.Conn{}
+	tc.mu.Unlock()
 }

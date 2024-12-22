@@ -1,10 +1,13 @@
 package client
 
 import (
-	"bufio"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"net"
+
+	"github.com/golang/snappy"
 )
 
 func NewTcpClient(addr string) *Tcp {
@@ -67,20 +70,36 @@ func (c *Tcp) Write(char rune) {
 
 func handleClientReading(conn net.Conn, inputChan chan [1]string) {
 	for {
-		// Read from the connection untill a new line is send
-		data, err := bufio.NewReader(conn).ReadString('\n')
+		// Read Payload length
+		var lengthBuffer [4]byte
+		_, err := io.ReadFull(conn, lengthBuffer[:])
 		if err != nil {
-			fmt.Println(err)
+			log.Println("Error reading length:", err)
+			continue
+		}
+
+		// Read Payload
+		compressed := make([]byte, binary.BigEndian.Uint32(lengthBuffer[:]))
+		_, err = io.ReadFull(conn, compressed)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		// Decompress Payload
+		decompressed, err := snappy.Decode(nil, compressed)
+		if err != nil {
+			fmt.Println("Error decompressing data:", err)
 			return
 		}
 
 		select {
 		// Try to write to the channel
-		case inputChan <- [1]string{data}:
+		case inputChan <- [1]string{string(decompressed)}:
 		// Otherwise clear channel
 		default:
 			<-inputChan
-			inputChan <- [1]string{data}
+			inputChan <- [1]string{string(decompressed)}
 		}
 	}
 }

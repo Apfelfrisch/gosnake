@@ -85,9 +85,7 @@ func main() {
 
 	if *onlyServer == true {
 		buildServer(*playerCount, *serverAddr).Run()
-	}
-
-	if *onlyClient == false {
+	} else if *onlyClient == false {
 		buildServer(*playerCount, *serverAddr).RunBackground()
 	}
 
