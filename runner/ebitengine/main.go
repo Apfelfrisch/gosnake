@@ -4,6 +4,9 @@ import (
 	"flag"
 	"image/color"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
@@ -21,27 +24,31 @@ const (
 )
 
 type Engine struct {
-	client *gclient.Tcp
+	client *gclient.GameClient
 }
 
 func (e *Engine) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
-		e.client.Write('w')
+		e.client.PressKey('w')
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) {
-		e.client.Write('s')
+		e.client.PressKey('s')
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyArrowLeft) {
-		e.client.Write('a')
+		e.client.PressKey('a')
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
-		e.client.Write('d')
+		e.client.PressKey('d')
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		e.client.Write('↵')
+		e.client.PressKey('↵')
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && ebiten.IsKeyPressed(ebiten.KeyC) {
+		os.Exit(0)
 	}
 
 	return nil
 }
 
 func (e *Engine) Draw(screen *ebiten.Image) {
-	for _, fieldPos := range gclient.DeserializeState(e.client.Read()) {
+	for _, fieldPos := range e.client.World() {
 		drawField(screen, fieldPos.Field, fieldPos.X, fieldPos.Y)
 	}
 }
@@ -73,6 +80,13 @@ func drawField(screen *ebiten.Image, field game.Field, x uint16, y uint16) {
 }
 
 func main() {
+	go func() {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+		<-sigs
+		os.Exit(0) // Graceful exit
+	}()
+
 	playerCount := flag.Int("player", 1, "Set Player count")
 	serverAddr := flag.String("server-addr", ":1200", "Set Sever Address")
 	onlyServer := flag.Bool("only-server", false, "Run only the server")
@@ -89,7 +103,7 @@ func main() {
 		buildServer(*playerCount, *serverAddr).RunBackground()
 	}
 
-	client := connectClient(*serverAddr)
+	client := gclient.Connect(*serverAddr)
 
 	if err := ebiten.RunGame(&Engine{client}); err != nil {
 		log.Fatal(err)

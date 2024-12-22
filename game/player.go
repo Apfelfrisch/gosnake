@@ -2,6 +2,8 @@ package game
 
 type snake struct {
 	grows     uint8
+	state     PlayerState
+	perk      perk
 	occupied  []Position
 	direction direction
 }
@@ -9,6 +11,7 @@ type snake struct {
 func newSnake(x uint16, y uint16, direction direction) snake {
 	return snake{
 		grows:     0,
+		perk:      perk{3},
 		direction: direction,
 		occupied:  []Position{{X: x, Y: y}},
 	}
@@ -33,6 +36,10 @@ func (snake *snake) ChangeDirection(direction direction) {
 			snake.direction = direction
 		}
 	}
+}
+
+func (snake *snake) State() PlayerState {
+	return snake.state
 }
 
 func (snake *snake) head() Position {
@@ -82,21 +89,52 @@ func (snake *snake) move() {
 	}
 }
 
-func (snake *snake) beamThroughWall(game Game) {
+func (snake *snake) walkWalls(game Game) {
 	position := snake.head()
 
+	if ok := snake.perk.use(); !ok {
+		return
+	}
+
 	// Walk through Walls
-	if position.X >= game.Width()-1 {
-		position.X = 1
-	} else if position.X == 0 {
+	if position.X > game.Width()-1 {
+		position.X = 2
+	} else if position.X == 1 {
 		position.X = game.Width() - 1
-	} else if position.Y >= game.Height()-1 {
-		position.Y = 1
-	} else if position.Y == 0 {
+	} else if position.Y > game.Height()-1 {
+		position.Y = 2
+	} else if position.Y == 1 {
 		position.Y = game.Height() - 1
 	} else {
+		// Perk was not needed
+		snake.perk.reload(1)
 		return
 	}
 
 	snake.occupied = append(snake.occupied[:len(snake.occupied)-1], position)
 }
+
+type perk struct {
+	usages uint16
+}
+
+func (p *perk) reload(usages uint16) {
+	p.usages += usages
+}
+
+func (p *perk) use() bool {
+	if p.usages == 0 {
+		return false
+	}
+
+	p.usages -= 1
+	return true
+}
+
+type PlayerState int
+
+const (
+	Undetermined PlayerState = iota
+	Won
+	Lost
+)
