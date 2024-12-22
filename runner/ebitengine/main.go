@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"image/color"
 	"log"
-	"os"
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
@@ -73,33 +73,37 @@ func drawField(screen *ebiten.Image, field game.Field, x uint16, y uint16) {
 }
 
 func main() {
+	playerCount := flag.Int("player", 1, "Set Player count")
+	serverAddr := flag.String("server-addr", ":1200", "Set Sever Address")
+	onlyServer := flag.Bool("only-server", false, "Run only the server")
+	onlyClient := flag.Bool("only-client", false, "Run only the server")
+
+	flag.Parse()
+
 	ebiten.SetWindowSize(displayWidth, displayHeight)
 	ebiten.SetWindowTitle("Snake")
 
-	playerCount := 2
-
-	var client *gclient.Tcp
-	if len(os.Args) <= 1 {
-		startServer(playerCount)
-		client = connectClient(":1200")
-	} else {
-		client = connectClient(os.Args[1])
+	if *onlyServer == true {
+		buildServer(*playerCount, *serverAddr).Run()
 	}
+
+	if *onlyClient == false {
+		buildServer(*playerCount, *serverAddr).RunBackground()
+	}
+
+	client := connectClient(*serverAddr)
 
 	if err := ebiten.RunGame(&Engine{client}); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func startServer(playerCount int) *gserver.GameServer {
-	server := gserver.New(
+func buildServer(playerCount int, addr string) *gserver.GameServer {
+	return gserver.New(
 		playerCount,
-		":1200",
+		addr,
 		game.NewBattleSnake(playerCount, displayWidth/gridSize, displayHeight/gridSize),
 	)
-	server.RunBackground()
-
-	return server
 }
 
 func connectClient(addr string) *gclient.Tcp {

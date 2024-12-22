@@ -47,6 +47,7 @@ func (s *GameServer) Run() {
 
 func (s *GameServer) Update() {
 	if time.Since(s.lastUpdate) < gameSpeed {
+		time.Sleep(time.Millisecond)
 		return
 	}
 
