@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net"
 	"strings"
 	"time"
@@ -46,6 +47,9 @@ func (s *GameServer) Run() {
 	}
 
 	// Reslisten for new Connections
+	s.game.Reset()
+	s.tcp = NewTcpSever(s.tcp.addr.String(), len(s.tcp.inputChans))
+
 	s.Run()
 }
 
@@ -62,6 +66,13 @@ func (s *GameServer) Update() {
 			continue
 		}
 
+		if s.game.State() == game.RoundFinished {
+			if s.game.State() == game.RoundFinished {
+				s.game.Reset()
+			}
+			continue
+		}
+
 		if *pressedKey == rune('w') {
 			s.game.ChangeDirection(connIndex, game.North)
 		} else if *pressedKey == rune('s') {
@@ -70,9 +81,17 @@ func (s *GameServer) Update() {
 			s.game.ChangeDirection(connIndex, game.West)
 		} else if *pressedKey == rune('d') {
 			s.game.ChangeDirection(connIndex, game.East)
+		} else if *pressedKey == rune(' ') {
+			s.game.Dash(connIndex)
 		} else if *pressedKey == rune('↵') {
-			s.game.Reset()
+			if s.game.State() == game.RoundFinished {
+				s.game.Reset()
+			}
 		}
+	}
+
+	if s.game.State() == game.GameFinished {
+		return
 	}
 
 	s.game.Tick()
@@ -82,16 +101,33 @@ func (s *GameServer) Update() {
 }
 
 func (s *GameServer) broadcastState() {
-	s.tcp.Broadcast(SerializeState(s.game))
+	players := s.game.Players()
+
+	for i := range s.tcp.conns.get() {
+		opponents := make([]game.Snake, 0, len(players)-1)
+		opponents = append(opponents, players[:i]...)
+		opponents = append(opponents, players[i+1:]...)
+
+		bytes, err := json.Marshal(Payload{
+			World:     SerializeWorld(s.game),
+			GameState: s.game.State(),
+			Player:    players[i],
+			Opponents: opponents,
+		})
+		if err != nil {
+			continue
+		}
+		s.tcp.WriteConn(i, bytes)
+	}
 }
 
-func SerializeState(g game.Game) string {
+func SerializeWorld(g game.Game) string {
 	var sb strings.Builder
 
 	var x, y uint16
 	for y = 1; y <= g.Height(); y++ {
 		for x = 1; x <= g.Width(); x++ {
-			sb.WriteString(string(g.Field(game.Position{Y: uint16(y), X: uint16(x)})))
+			sb.WriteRune(rune(g.Field(game.Position{Y: uint16(y), X: uint16(x)})))
 		}
 		sb.WriteRune('|')
 	}

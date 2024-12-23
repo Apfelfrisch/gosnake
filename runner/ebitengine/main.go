@@ -2,24 +2,24 @@ package main
 
 import (
 	"flag"
-	"image/color"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
+
+	// _ "net/http/pprof"
 
 	"github.com/apfelfrisch/gosnake/game"
 	gclient "github.com/apfelfrisch/gosnake/game/client"
 	gserver "github.com/apfelfrisch/gosnake/game/server"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 const (
-	displayWidth  = 1000
+	displayWidth  = 1500
 	displayHeight = 1000
+	gameWidth     = 1000
+	gameHeight    = 1000
 	gridSize      = 20
 )
 
@@ -36,6 +36,8 @@ func (e *Engine) Update() error {
 		e.client.PressKey('a')
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
 		e.client.PressKey('d')
+	} else if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		e.client.PressKey(' ')
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		e.client.PressKey('↵')
 	}
@@ -48,8 +50,13 @@ func (e *Engine) Update() error {
 }
 
 func (e *Engine) Draw(screen *ebiten.Image) {
-	for _, fieldPos := range e.client.World() {
-		drawField(screen, fieldPos.Field, fieldPos.X, fieldPos.Y)
+	e.client.UpdatePayload()
+
+	if e.client.Payload.GameState != game.GameFinished {
+		drawGameField(screen, e.client.World())
+		drawPlayerInfo(screen, e.client.Payload)
+	} else {
+		drawFinishScreen(screen, e.client.Payload.Player)
 	}
 }
 
@@ -57,35 +64,10 @@ func (e *Engine) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHei
 	return displayWidth, displayHeight
 }
 
-func drawField(screen *ebiten.Image, field game.Field, x uint16, y uint16) {
-	var c color.Color
-	switch field {
-	case game.Wall:
-		c = color.Gray{150}
-	case game.Empty:
-		c = color.Black
-	default:
-		c = color.White
-	}
-
-	vector.DrawFilledRect(
-		screen,
-		float32(x*gridSize-gridSize),
-		float32(y*gridSize-gridSize),
-		float32(gridSize),
-		float32(gridSize),
-		c,
-		false,
-	)
-}
-
 func main() {
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
-		<-sigs
-		os.Exit(0) // Graceful exit
-	}()
+	// go func() {
+	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
 
 	playerCount := flag.Int("player", 1, "Set Player count")
 	serverAddr := flag.String("server-addr", ":1200", "Set Sever Address")
@@ -114,7 +96,7 @@ func buildServer(playerCount int, addr string) *gserver.GameServer {
 	return gserver.New(
 		playerCount,
 		addr,
-		game.NewBattleSnake(playerCount, displayWidth/gridSize, displayHeight/gridSize),
+		game.NewBattleSnake(playerCount, gameWidth/gridSize, gameHeight/gridSize),
 	)
 }
 

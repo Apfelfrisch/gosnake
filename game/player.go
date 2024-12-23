@@ -1,23 +1,29 @@
 package game
 
-type snake struct {
+type Snake struct {
+	Perks     Perks `json:"pk"`
+	Lives     uint8 `json:"li"`
 	grows     uint8
-	state     PlayerState
-	perk      perk
 	occupied  []Position
 	direction direction
 }
 
-func newSnake(x uint16, y uint16, direction direction) snake {
-	return snake{
-		grows:     0,
-		perk:      perk{3},
+func newSnake(x uint16, y uint16, direction direction) Snake {
+	return Snake{
+		Lives:     10,
+		Perks:     Perks{walkWall: {Usages: 3}, dash: {Usages: 3}},
 		direction: direction,
 		occupied:  []Position{{X: x, Y: y}},
 	}
 }
 
-func (snake *snake) ChangeDirection(direction direction) {
+func (snake *Snake) reset(x uint16, y uint16, direction direction) {
+	snake.occupied = []Position{{X: x, Y: y}}
+	snake.direction = direction
+	snake.Perks = Perks{walkWall: {Usages: 3}, dash: {Usages: 3}}
+}
+
+func (snake *Snake) ChangeDirection(direction direction) {
 	switch direction {
 	case North:
 		if snake.direction != South {
@@ -38,11 +44,7 @@ func (snake *snake) ChangeDirection(direction direction) {
 	}
 }
 
-func (snake *snake) State() PlayerState {
-	return snake.state
-}
-
-func (snake *snake) head() Position {
+func (snake *Snake) head() Position {
 	if len(snake.occupied) == 0 {
 		panic("Snake sould always have at least one length")
 	}
@@ -50,7 +52,7 @@ func (snake *snake) head() Position {
 	return snake.occupied[len(snake.occupied)-1]
 }
 
-func (snake *snake) body() []Position {
+func (snake *Snake) body() []Position {
 	if len(snake.occupied) == 0 {
 		panic("Snake sould always have at least one length")
 	}
@@ -58,7 +60,7 @@ func (snake *snake) body() []Position {
 	return snake.occupied[:len(snake.occupied)-1]
 }
 
-func (snake *snake) move() {
+func (snake *Snake) move() {
 	if len(snake.occupied) == 0 {
 		return
 	}
@@ -89,10 +91,10 @@ func (snake *snake) move() {
 	}
 }
 
-func (snake *snake) walkWalls(game Game) {
+func (snake *Snake) walkWalls(game Game) {
 	position := snake.head()
 
-	if ok := snake.perk.use(); !ok {
+	if ok := snake.Perks.use(walkWall); !ok {
 		return
 	}
 
@@ -107,34 +109,9 @@ func (snake *snake) walkWalls(game Game) {
 		position.Y = game.Height() - 1
 	} else {
 		// Perk was not needed
-		snake.perk.reload(1)
+		snake.Perks.reload(walkWall, 1)
 		return
 	}
 
 	snake.occupied = append(snake.occupied[:len(snake.occupied)-1], position)
 }
-
-type perk struct {
-	usages uint16
-}
-
-func (p *perk) reload(usages uint16) {
-	p.usages += usages
-}
-
-func (p *perk) use() bool {
-	if p.usages == 0 {
-		return false
-	}
-
-	p.usages -= 1
-	return true
-}
-
-type PlayerState int
-
-const (
-	Undetermined PlayerState = iota
-	Won
-	Lost
-)

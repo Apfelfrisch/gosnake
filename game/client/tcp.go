@@ -74,8 +74,8 @@ func handleClientReading(conn net.Conn, inputChan chan [1]string) {
 		var lengthBuffer [4]byte
 		_, err := io.ReadFull(conn, lengthBuffer[:])
 		if err != nil {
-			log.Println("Error reading length:", err)
-			continue
+			conn.Close()
+			return
 		}
 
 		// Read Payload

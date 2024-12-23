@@ -8,6 +8,8 @@ type Game interface {
 	State() GameState
 	Field(position Position) Field
 	ChangeDirection(playerIndex int, direction direction)
+	Dash(playerIndex int)
+	Players() []Snake
 }
 
 type direction int
@@ -19,20 +21,21 @@ const (
 	West
 )
 
-type Field string
+type Field rune
 
 const (
-	Empty     Field = " "
-	Wall            = "X"
-	Candy           = "☀"
-	SnakeBody       = "#"
+	Empty     Field = ' '
+	Wall            = 'X'
+	Candy           = '☀'
+	SnakeBody       = '#'
 )
 
 type GameState int
 
 const (
 	Ongoing GameState = iota
-	Finished
+	RoundFinished
+	GameFinished
 )
 
 type Position struct {
