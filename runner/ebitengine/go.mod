@@ -6,7 +6,7 @@ replace github.com/apfelfrisch/gosnake/game => ../../game
 
 require (
 	github.com/apfelfrisch/gosnake/game v0.0.0-00010101000000-000000000000
-	github.com/hajimehoshi/ebiten/v2 v2.8.5
+	github.com/hajimehoshi/ebiten/v2 v2.8.6
 	golang.org/x/image v0.20.0
 )
 

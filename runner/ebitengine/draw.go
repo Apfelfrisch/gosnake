@@ -15,6 +15,14 @@ import (
 	"golang.org/x/image/font/gofont/goregular"
 )
 
+const (
+	displayWidth  = 1500
+	displayHeight = 1000
+	gameWidth     = 1000
+	gameHeight    = 1000
+	gridSize      = 20
+)
+
 const playerInfoXOffset = gameWidth + 10
 
 func drawPlayerInfo(screen *ebiten.Image, payload *client.Payload) {
@@ -81,7 +89,7 @@ func drawPlayerInfo(screen *ebiten.Image, payload *client.Payload) {
 		text.Draw(screen, "Perks:", face, op)
 
 		op.GeoM.Reset()
-		op.GeoM.Translate(playerInfoXOffset+70, 140)
+		op.GeoM.Translate(playerInfoXOffset+70, 170)
 		text.Draw(screen, fmt.Sprintf("%d", oppenent.Lives), face, op)
 		for _, pName := range sortPerkNames(oppenent.Perks) {
 			op.GeoM.Translate(0, 30)
@@ -91,18 +99,7 @@ func drawPlayerInfo(screen *ebiten.Image, payload *client.Payload) {
 }
 
 func drawGameField(screen *ebiten.Image, world []game.FieldPos) {
-	var c color.Color
-
-	for _, fieldPos := range world {
-		switch fieldPos.Field {
-		case game.Wall:
-			c = color.Gray{150}
-		case game.Empty:
-			c = color.Black
-		default:
-			c = color.White
-		}
-
+	drawRect := func(fieldPos game.FieldPos, c color.Color) {
 		vector.DrawFilledRect(
 			screen,
 			float32(fieldPos.X*gridSize-gridSize),
@@ -113,6 +110,53 @@ func drawGameField(screen *ebiten.Image, world []game.FieldPos) {
 			false,
 		)
 	}
+
+	drawCircle := func(fieldPos game.FieldPos, c color.Color) {
+		vector.DrawFilledCircle(
+			screen,
+			float32(fieldPos.X*gridSize-gridSize/2),
+			float32(fieldPos.Y*gridSize-gridSize/2),
+			float32(gridSize)/2,
+			c,
+			true,
+		)
+	}
+
+	for _, fieldPos := range world {
+		switch fieldPos.Field {
+		case game.Wall:
+			drawRect(fieldPos, color.Gray{150})
+		case game.Empty:
+			drawRect(fieldPos, color.Black)
+		case game.SnakePlayer:
+			drawRect(fieldPos, color.RGBA{30, 144, 255, 255})
+		case game.SnakeOpponent:
+			drawRect(fieldPos, color.RGBA{220, 20, 60, 255})
+		case game.Candy:
+			drawCircle(fieldPos, color.RGBA{255, 215, 0, 255})
+		default:
+			drawRect(fieldPos, color.White)
+		}
+	}
+}
+
+func drawPausedScreen(screen *ebiten.Image) {
+	message := "Ready, Press 'Enter' to start"
+
+	menuFont, err := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		log.Fatal(err)
+	}
+	face := &text.GoTextFace{
+		Source: menuFont,
+		Size:   50.0,
+	}
+
+	op := &text.DrawOptions{}
+	op.ColorScale.ScaleWithColor(color.White)
+
+	op.GeoM.Translate(gameWidth/2-300, displayHeight/2-50)
+	text.Draw(screen, message, face, op)
 }
 
 func drawFinishScreen(screen *ebiten.Image, player game.Snake) {
@@ -135,6 +179,6 @@ func drawFinishScreen(screen *ebiten.Image, player game.Snake) {
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(color.White)
 
-	op.GeoM.Translate(displayWidth/2-100, displayHeight/2-50)
+	op.GeoM.Translate(gameWidth/2-300, displayHeight/2-50)
 	text.Draw(screen, message, face, op)
 }

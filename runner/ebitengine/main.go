@@ -15,14 +15,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-const (
-	displayWidth  = 1500
-	displayHeight = 1000
-	gameWidth     = 1000
-	gameHeight    = 1000
-	gridSize      = 20
-)
-
 type Engine struct {
 	client *gclient.GameClient
 }
@@ -52,11 +44,14 @@ func (e *Engine) Update() error {
 func (e *Engine) Draw(screen *ebiten.Image) {
 	e.client.UpdatePayload()
 
-	if e.client.Payload.GameState != game.GameFinished {
+	if e.client.Payload.GameState == game.Paused {
+		drawPausedScreen(screen)
+		drawPlayerInfo(screen, e.client.Payload)
+	} else if e.client.Payload.GameState == game.GameFinished {
+		drawFinishScreen(screen, e.client.Payload.Player)
+	} else {
 		drawGameField(screen, e.client.World())
 		drawPlayerInfo(screen, e.client.Payload)
-	} else {
-		drawFinishScreen(screen, e.client.Payload.Player)
 	}
 }
 

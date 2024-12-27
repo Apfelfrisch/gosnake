@@ -66,9 +66,14 @@ func (s *GameServer) Update() {
 			continue
 		}
 
-		if s.game.State() == game.RoundFinished {
-			if s.game.State() == game.RoundFinished {
-				s.game.Reset()
+		if s.game.State() != game.Ongoing {
+			if *pressedKey == rune('↵') {
+				if s.game.State() == game.Paused {
+					s.game.TooglePaused()
+				} else {
+					s.game.Reset()
+				}
+				return
 			}
 			continue
 		}
@@ -83,15 +88,7 @@ func (s *GameServer) Update() {
 			s.game.ChangeDirection(connIndex, game.East)
 		} else if *pressedKey == rune(' ') {
 			s.game.Dash(connIndex)
-		} else if *pressedKey == rune('↵') {
-			if s.game.State() == game.RoundFinished {
-				s.game.Reset()
-			}
 		}
-	}
-
-	if s.game.State() == game.GameFinished {
-		return
 	}
 
 	s.game.Tick()
@@ -109,7 +106,7 @@ func (s *GameServer) broadcastState() {
 		opponents = append(opponents, players[i+1:]...)
 
 		bytes, err := json.Marshal(Payload{
-			World:     SerializeWorld(s.game),
+			World:     SerializeWorld(i, s.game),
 			GameState: s.game.State(),
 			Player:    players[i],
 			Opponents: opponents,
@@ -121,13 +118,13 @@ func (s *GameServer) broadcastState() {
 	}
 }
 
-func SerializeWorld(g game.Game) string {
+func SerializeWorld(playerIndex int, g game.Game) string {
 	var sb strings.Builder
 
 	var x, y uint16
 	for y = 1; y <= g.Height(); y++ {
 		for x = 1; x <= g.Width(); x++ {
-			sb.WriteRune(rune(g.Field(game.Position{Y: uint16(y), X: uint16(x)})))
+			sb.WriteRune(rune(g.Field(playerIndex, game.Position{Y: uint16(y), X: uint16(x)})))
 		}
 		sb.WriteRune('|')
 	}

@@ -43,9 +43,17 @@ func (game *battleSnake) Width() uint16 {
 	return game.gameMap.Width()
 }
 
+func (game *battleSnake) TooglePaused() {
+	if game.state == Ongoing {
+		game.state = Paused
+	} else if game.state == Paused {
+		game.state = Ongoing
+	}
+}
+
 func (game *battleSnake) Reset() {
 	if game.state == RoundFinished {
-		fmt.Printf("Befor reset:\n")
+		fmt.Printf("Before reset:\n")
 		fmt.Printf("Pointer: %T, Cap: %v, Len: , Values: %v \n", game.players, game.players, game.players)
 		for i := range game.players {
 			game.players[i].reset(uint16((i+1)*5), uint16((i+1)*5), East)
@@ -66,7 +74,7 @@ func (game *battleSnake) Reset() {
 	}
 }
 
-func (game *battleSnake) Field(position Position) Field {
+func (game *battleSnake) Field(playerIndex int, position Position) Field {
 	if game.gameMap.IsWall(position) {
 		return Wall
 	}
@@ -77,10 +85,20 @@ func (game *battleSnake) Field(position Position) Field {
 		}
 	}
 
-	for _, player := range game.players {
+	for _, snakePos := range game.players[playerIndex].occupied {
+		if position.Y == snakePos.Y && position.X == snakePos.X {
+			return SnakePlayer
+		}
+	}
+
+	for index, player := range game.players {
+		if index == playerIndex {
+			continue
+		}
+
 		for _, snakePos := range player.occupied {
 			if position.Y == snakePos.Y && position.X == snakePos.X {
-				return SnakeBody
+				return SnakeOpponent
 			}
 		}
 	}

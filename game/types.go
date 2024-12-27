@@ -3,10 +3,11 @@ package game
 type Game interface {
 	Tick()
 	Reset()
+	TooglePaused()
 	Height() uint16
 	Width() uint16
 	State() GameState
-	Field(position Position) Field
+	Field(playerIndex int, position Position) Field
 	ChangeDirection(playerIndex int, direction direction)
 	Dash(playerIndex int)
 	Players() []Snake
@@ -24,16 +25,18 @@ const (
 type Field rune
 
 const (
-	Empty     Field = ' '
-	Wall            = 'X'
-	Candy           = '☀'
-	SnakeBody       = '#'
+	Empty         Field = ' '
+	Wall                = 'X'
+	Candy               = '☀'
+	SnakePlayer         = '0'
+	SnakeOpponent       = '1'
 )
 
 type GameState int
 
 const (
-	Ongoing GameState = iota
+	Paused GameState = iota
+	Ongoing
 	RoundFinished
 	GameFinished
 )
