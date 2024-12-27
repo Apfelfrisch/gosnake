@@ -179,6 +179,6 @@ func drawFinishScreen(screen *ebiten.Image, player game.Snake) {
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(color.White)
 
-	op.GeoM.Translate(gameWidth/2-300, displayHeight/2-50)
+	op.GeoM.Translate(gameWidth/2-150, displayHeight/2-50)
 	text.Draw(screen, message, face, op)
 }

@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"math/rand/v2"
 )
 
@@ -53,24 +52,21 @@ func (game *battleSnake) TooglePaused() {
 
 func (game *battleSnake) Reset() {
 	if game.state == RoundFinished {
-		fmt.Printf("Before reset:\n")
-		fmt.Printf("Pointer: %T, Cap: %v, Len: , Values: %v \n", game.players, game.players, game.players)
 		for i := range game.players {
 			game.players[i].reset(uint16((i+1)*5), uint16((i+1)*5), East)
 		}
-		fmt.Printf("After reset:\n")
-		fmt.Printf("Pointer: %T, Cap: %v, Len: , Values: %v \n", game.players, game.players, game.players)
-		fmt.Println("---")
 		game.state = Ongoing
 		game.candies[0] = game.randomPosition()
 	} else {
-		var players []Snake
 
-		for i := 1; i <= len(game.players); i++ {
-			players = append(players, newSnake(uint16(i*5), uint16(i*5), East))
+		for i := range game.players {
+			game.players[i].reset(uint16((i+1)*5), uint16((i+1)*5), East)
 		}
 
-		game = NewBattleSnake(len(game.players), int(game.Width()), int(game.Height()))
+		game.level = 1
+		game.state = Paused
+		game.gameMap = NewMap(1, uint16(game.Width()), uint16(game.Height()))
+		game.candies[0] = game.randomPosition()
 	}
 }
 

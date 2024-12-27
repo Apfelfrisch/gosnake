@@ -46,13 +46,12 @@ func (e *Engine) Draw(screen *ebiten.Image) {
 
 	if e.client.Payload.GameState == game.Paused {
 		drawPausedScreen(screen)
-		drawPlayerInfo(screen, e.client.Payload)
 	} else if e.client.Payload.GameState == game.GameFinished {
 		drawFinishScreen(screen, e.client.Payload.Player)
 	} else {
 		drawGameField(screen, e.client.World())
-		drawPlayerInfo(screen, e.client.Payload)
 	}
+	drawPlayerInfo(screen, e.client.Payload)
 }
 
 func (e *Engine) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
