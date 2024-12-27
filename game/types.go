@@ -1,18 +1,5 @@
 package game
 
-type Game interface {
-	Tick()
-	Reset()
-	TooglePaused()
-	Height() uint16
-	Width() uint16
-	State() GameState
-	Field(playerIndex int, position Position) Field
-	ChangeDirection(playerIndex int, direction direction)
-	Dash(playerIndex int)
-	Players() []Snake
-}
-
 type direction int
 
 const (

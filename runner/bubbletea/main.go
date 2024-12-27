@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/apfelfrisch/gosnake/game/client"
 	gclient "github.com/apfelfrisch/gosnake/game/client"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -21,6 +22,10 @@ func tick(duration time.Duration) tea.Cmd {
 	})
 }
 
+type gameModel struct {
+	client *gclient.GameClient
+}
+
 func (model gameModel) Init() tea.Cmd {
 	return tea.Batch(tea.ClearScreen, tick(time.Millisecond*100))
 }
@@ -35,16 +40,16 @@ func (m gameModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//
 		case "up":
 		case "w":
-			m.client.Write('w')
+			m.client.PressKey('w')
 		case "down":
 		case "s":
-			m.client.Write('s')
+			m.client.PressKey('s')
 		case "left":
 		case "a":
-			m.client.Write('a')
+			m.client.PressKey('a')
 		case "right":
 		case "d":
-			m.client.Write('d')
+			m.client.PressKey('d')
 		}
 	case time.Time:
 		return m, tick(time.Millisecond * 100)
@@ -56,7 +61,7 @@ func (m gameModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m gameModel) View() string {
 	view := ""
 
-	for _, fieldPos := range gclient.DeserializeState(m.client.Read()) {
+	for _, fieldPos := range m.client.World() {
 		if fieldPos.X == 1 && view != "" {
 			view += "\n"
 		}
@@ -67,14 +72,8 @@ func (m gameModel) View() string {
 	return view
 }
 
-type gameModel struct {
-	client *gclient.Tcp
-}
-
 func main() {
-	client := connectClient(os.Args[1])
-
-	tui := tea.NewProgram(gameModel{client})
+	tui := tea.NewProgram(gameModel{client.Connect(os.Args[1])})
 	tea.ClearScreen()
 
 	tui.Run()

@@ -59,6 +59,7 @@ func (s *Tcp) ReadConn(connIndex int) *rune {
 }
 
 func (s *Tcp) WriteConn(connIndex int, content []byte) {
+
 	select {
 	// Try to write to the channel
 	case s.outputChans[connIndex] <- byteBuffer{append(content, byte(10))}:

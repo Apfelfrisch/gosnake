@@ -1,74 +1,76 @@
 package game
 
 type Snake struct {
-	Perks     Perks `json:"pk"`
-	Lives     uint8 `json:"li"`
+	Perks     Perks      `json:"pk"`
+	Lives     uint8      `json:"li"`
+	Occupied  []Position `json:"oc"`
+	Direction direction  `json:"dr"`
 	grows     uint8
-	occupied  []Position
-	direction direction
 }
 
 func newSnake(x uint16, y uint16, direction direction) Snake {
 	return Snake{
 		Lives:     10,
 		Perks:     Perks{walkWall: {Usages: 3}, dash: {Usages: 3}},
-		direction: direction,
-		occupied:  []Position{{X: x, Y: y}},
+		Direction: direction,
+		Occupied:  []Position{{X: x, Y: y}},
+		grows:     0,
 	}
 }
 
-func (snake *Snake) reset(x uint16, y uint16, direction direction) {
-	snake.occupied = []Position{{X: x, Y: y}}
-	snake.direction = direction
+func (snake *Snake) reset(x int, y int, direction direction) {
+	snake.Occupied = []Position{{X: uint16(x), Y: uint16(y)}}
+	snake.Direction = direction
 	snake.Perks = Perks{walkWall: {Usages: 3}, dash: {Usages: 3}}
+	snake.grows = 0
 }
 
 func (snake *Snake) ChangeDirection(direction direction) {
 	switch direction {
 	case North:
-		if snake.direction != South {
-			snake.direction = direction
+		if snake.Direction != South {
+			snake.Direction = direction
 		}
 	case East:
-		if snake.direction != West {
-			snake.direction = direction
+		if snake.Direction != West {
+			snake.Direction = direction
 		}
 	case West:
-		if snake.direction != East {
-			snake.direction = direction
+		if snake.Direction != East {
+			snake.Direction = direction
 		}
 	case South:
-		if snake.direction != North {
-			snake.direction = direction
+		if snake.Direction != North {
+			snake.Direction = direction
 		}
 	}
 }
 
 func (snake *Snake) head() Position {
-	if len(snake.occupied) == 0 {
+	if len(snake.Occupied) == 0 {
 		panic("Snake sould always have at least one length")
 	}
 
-	return snake.occupied[len(snake.occupied)-1]
+	return snake.Occupied[len(snake.Occupied)-1]
 }
 
 func (snake *Snake) body() []Position {
-	if len(snake.occupied) == 0 {
+	if len(snake.Occupied) == 0 {
 		panic("Snake sould always have at least one length")
 	}
 
-	return snake.occupied[:len(snake.occupied)-1]
+	return snake.Occupied[:len(snake.Occupied)-1]
 }
 
 func (snake *Snake) move() {
-	if len(snake.occupied) == 0 {
+	if len(snake.Occupied) == 0 {
 		return
 	}
 
 	head := snake.head()
 
 	var newHead Position
-	switch snake.direction {
+	switch snake.Direction {
 	case North:
 		newHead = Position{Y: head.Y - 1, X: head.X}
 	case East:
@@ -83,15 +85,15 @@ func (snake *Snake) move() {
 
 	if snake.grows == 0 {
 		// Move the Snake
-		snake.occupied = append(snake.occupied[1:], newHead)
+		snake.Occupied = append(snake.Occupied[1:], newHead)
 	} else {
 		// Move and grow the Snake
 		snake.grows--
-		snake.occupied = append(snake.occupied[:], newHead)
+		snake.Occupied = append(snake.Occupied[:], newHead)
 	}
 }
 
-func (snake *Snake) walkWalls(game Game) {
+func (snake *Snake) walkWalls(game *Game) {
 	position := snake.head()
 
 	if ok := snake.Perks.use(walkWall); !ok {
@@ -113,5 +115,5 @@ func (snake *Snake) walkWalls(game Game) {
 		return
 	}
 
-	snake.occupied = append(snake.occupied[:len(snake.occupied)-1], position)
+	snake.Occupied = append(snake.Occupied[:len(snake.Occupied)-1], position)
 }

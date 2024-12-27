@@ -73,7 +73,7 @@ const (
 )
 
 type Perk struct {
-	Usages uint16
+	Usages uint16 `json:"u"`
 }
 
 func (p *Perk) reload(usages uint16) {

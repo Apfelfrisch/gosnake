@@ -11,23 +11,35 @@ func NewMap(level, gameWidth, gameHeight uint16) *Map {
 
 	switch level {
 	case 2:
-		for width := 10; width <= 40; width++ {
-			walls[15][uint16(width)] = true
+		wallLen := gameWidth / 2
+		for width := wallLen / 2; width <= gameWidth-wallLen/2; width++ {
+			walls[gameHeight/2-1][uint16(width)] = true
 		}
 	case 3:
-		for height := 5; height <= 25; height++ {
+		for height := gameHeight / 4; height <= gameHeight-gameHeight/4; height++ {
 			walls[uint16(height)][10] = true
 			walls[uint16(height)][40] = true
 		}
 	case 4:
-		for width := 2; width <= 25; width++ {
-			walls[8][uint16(width)] = true
-			walls[22][uint16(51-width)] = true
+		wallLen := gameWidth / 2
+		for width := uint16(1); width <= wallLen; width++ {
+			walls[gameHeight/4][gameWidth-width] = true
+			walls[gameHeight-gameHeight/4][width] = true
 		}
 
-		for height := 2; height <= 16; height++ {
-			walls[uint16(height)][35] = true
-			walls[uint16(32-height)][15] = true
+		for height := uint16(1); height <= wallLen; height++ {
+			walls[gameHeight-height][gameWidth-gameWidth/4] = true
+			walls[height][gameWidth/4] = true
+		}
+	case 5:
+		wallLen := gameWidth / 2
+		for width := uint16(1); width <= wallLen-2; width++ {
+			walls[gameHeight/4][gameWidth/4+width+1] = true
+			walls[gameHeight-gameHeight/4][gameWidth/4+width+1] = true
+		}
+		for height := uint16(1); height <= wallLen-2; height++ {
+			walls[gameHeight/4+height+1][gameWidth/4] = true
+			walls[gameHeight/4+height+1][gameHeight-gameHeight/4] = true
 		}
 	}
 

@@ -49,6 +49,7 @@ func (e *Engine) Draw(screen *ebiten.Image) {
 	} else if e.client.Payload.GameState == game.GameFinished {
 		drawFinishScreen(screen, e.client.Payload.Player)
 	} else {
+		drawSnakes(screen, e.client.Payload.Player, e.client.Payload.Opponents)
 		drawGameField(screen, e.client.World())
 	}
 	drawPlayerInfo(screen, e.client.Payload)
@@ -90,7 +91,7 @@ func buildServer(playerCount int, addr string) *gserver.GameServer {
 	return gserver.New(
 		playerCount,
 		addr,
-		game.NewBattleSnake(playerCount, gameWidth/gridSize, gameHeight/gridSize),
+		game.NewGame(playerCount, gameWidth/gridSize, gameHeight/gridSize),
 	)
 }
 

@@ -9,9 +9,9 @@ import (
 	"github.com/apfelfrisch/gosnake/game"
 )
 
-const gameSpeed = time.Second / 10
+const GameSpeed = time.Second / 10
 
-func New(player int, addr string, game game.Game) *GameServer {
+func New(player int, addr string, game *game.Game) *GameServer {
 	return &GameServer{
 		tcp:  NewTcpSever(":1200", player),
 		game: game,
@@ -20,7 +20,7 @@ func New(player int, addr string, game game.Game) *GameServer {
 
 type GameServer struct {
 	tcp        *Tcp
-	game       game.Game
+	game       *game.Game
 	lastUpdate time.Time
 }
 
@@ -54,7 +54,7 @@ func (s *GameServer) Run() {
 }
 
 func (s *GameServer) Update() {
-	if time.Since(s.lastUpdate) < gameSpeed {
+	if time.Since(s.lastUpdate) < GameSpeed {
 		time.Sleep(time.Millisecond)
 		return
 	}
@@ -118,13 +118,18 @@ func (s *GameServer) broadcastState() {
 	}
 }
 
-func SerializeWorld(playerIndex int, g game.Game) string {
+func SerializeWorld(playerIndex int, g *game.Game) string {
 	var sb strings.Builder
 
 	var x, y uint16
 	for y = 1; y <= g.Height(); y++ {
 		for x = 1; x <= g.Width(); x++ {
-			sb.WriteRune(rune(g.Field(playerIndex, game.Position{Y: uint16(y), X: uint16(x)})))
+			field := g.Field(playerIndex, game.Position{Y: uint16(y), X: uint16(x)})
+			if field == game.SnakePlayer || field == game.SnakeOpponent {
+				sb.WriteRune(rune(game.Empty))
+			} else {
+				sb.WriteRune(rune(field))
+			}
 		}
 		sb.WriteRune('|')
 	}

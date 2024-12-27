@@ -4,45 +4,48 @@ import (
 	"math/rand/v2"
 )
 
-type battleSnake struct {
-	level   int
+const growsSize = 5
+const MapSwitch = 10
+
+type Game struct {
+	level   uint16
 	gameMap *Map
 	state   GameState
 	players []Snake
 	candies []Position
 }
 
-func NewBattleSnake(player, width, height int) *battleSnake {
+func NewGame(player, width, height int) *Game {
 	var players []Snake
 
 	for i := 1; i <= player; i++ {
 		players = append(players, newSnake(uint16(i*5), uint16(i*5), East))
 	}
 
-	return &battleSnake{
+	game := &Game{
 		level:   1,
 		gameMap: NewMap(1, uint16(width), uint16(height)),
 		players: players,
-		candies: []Position{{
-			Y: uint16(rand.N(height-2) + 1),
-			X: uint16(rand.N(width-2) + 1),
-		}},
 	}
+
+	game.candies = []Position{game.randomPosition()}
+
+	return game
 }
 
-func (game *battleSnake) State() GameState {
+func (game *Game) State() GameState {
 	return game.state
 }
 
-func (game *battleSnake) Height() uint16 {
+func (game *Game) Height() uint16 {
 	return game.gameMap.Height()
 }
 
-func (game *battleSnake) Width() uint16 {
+func (game *Game) Width() uint16 {
 	return game.gameMap.Width()
 }
 
-func (game *battleSnake) TooglePaused() {
+func (game *Game) TooglePaused() {
 	if game.state == Ongoing {
 		game.state = Paused
 	} else if game.state == Paused {
@@ -50,27 +53,30 @@ func (game *battleSnake) TooglePaused() {
 	}
 }
 
-func (game *battleSnake) Reset() {
+func (game *Game) Reset() {
 	if game.state == RoundFinished {
 		for i := range game.players {
-			game.players[i].reset(uint16((i+1)*5), uint16((i+1)*5), East)
+			game.players[i].reset((i+1)*5, (i+1)*5, East)
 		}
+
 		game.state = Ongoing
 		game.candies[0] = game.randomPosition()
+		game.gameMap = NewMap(game.level, uint16(game.Width()), uint16(game.Height()))
 	} else {
-
-		for i := range game.players {
-			game.players[i].reset(uint16((i+1)*5), uint16((i+1)*5), East)
+		var players []Snake
+		for i := 1; i <= len(game.players); i++ {
+			players = append(players, newSnake(uint16(i*5), uint16(i*5), East))
 		}
 
 		game.level = 1
 		game.state = Paused
-		game.gameMap = NewMap(1, uint16(game.Width()), uint16(game.Height()))
+		game.players = players
+		game.gameMap = NewMap(game.level, uint16(game.Width()), uint16(game.Height()))
 		game.candies[0] = game.randomPosition()
 	}
 }
 
-func (game *battleSnake) Field(playerIndex int, position Position) Field {
+func (game *Game) Field(playerIndex int, position Position) Field {
 	if game.gameMap.IsWall(position) {
 		return Wall
 	}
@@ -81,7 +87,7 @@ func (game *battleSnake) Field(playerIndex int, position Position) Field {
 		}
 	}
 
-	for _, snakePos := range game.players[playerIndex].occupied {
+	for _, snakePos := range game.players[playerIndex].Occupied {
 		if position.Y == snakePos.Y && position.X == snakePos.X {
 			return SnakePlayer
 		}
@@ -92,7 +98,7 @@ func (game *battleSnake) Field(playerIndex int, position Position) Field {
 			continue
 		}
 
-		for _, snakePos := range player.occupied {
+		for _, snakePos := range player.Occupied {
 			if position.Y == snakePos.Y && position.X == snakePos.X {
 				return SnakeOpponent
 			}
@@ -102,7 +108,7 @@ func (game *battleSnake) Field(playerIndex int, position Position) Field {
 	return Empty
 }
 
-func (game *battleSnake) Tick() {
+func (game *Game) Tick() {
 	if game.state != Ongoing {
 		return
 	}
@@ -114,12 +120,24 @@ func (game *battleSnake) Tick() {
 		player.walkWalls(game)
 	}
 
+	candyCount := 0
 	for index := range game.players {
 		game.handelCollision(index)
+		candyCount += (len(game.players[index].Occupied) + int(game.players[index].grows)) / growsSize
+	}
+
+	if candyCount >= MapSwitch {
+		game.level += 1
+
+		if game.level >= 6 {
+			game.state = GameFinished
+		} else {
+			game.state = RoundFinished
+		}
 	}
 }
 
-func (game *battleSnake) handelCollision(playerIndex int) {
+func (game *Game) handelCollision(playerIndex int) {
 	player := &game.players[playerIndex]
 
 	handleCollision := func() {
@@ -145,7 +163,7 @@ func (game *battleSnake) handelCollision(playerIndex int) {
 		if collisionIndex == playerIndex {
 			continue
 		}
-		if collision := player.head().getCollision(collisionPlayer.occupied); collision != nil {
+		if collision := player.head().getCollision(collisionPlayer.Occupied); collision != nil {
 			handleCollision()
 			return
 		}
@@ -153,18 +171,18 @@ func (game *battleSnake) handelCollision(playerIndex int) {
 
 	// Snake gets Candy
 	if candyIndex := player.head().getCollision(game.candies); candyIndex != nil {
-		player.grows += 5
+		player.grows += growsSize
 		game.candies[*candyIndex] = game.randomPosition()
 	}
 }
 
-func (game *battleSnake) ChangeDirection(playerIndex int, direction direction) {
+func (game *Game) ChangeDirection(playerIndex int, direction direction) {
 	if playerIndex >= 0 && playerIndex < len(game.players) {
 		game.players[playerIndex].ChangeDirection(direction)
 	}
 }
 
-func (game *battleSnake) Dash(playerIndex int) {
+func (game *Game) Dash(playerIndex int) {
 	if game.state != Ongoing {
 		return
 	}
@@ -182,21 +200,27 @@ func (game *battleSnake) Dash(playerIndex int) {
 	}
 }
 
-func (game *battleSnake) Players() []Snake {
+func (game *Game) Players() []Snake {
 	return game.players
 }
 
-func (game *battleSnake) randomPosition() Position {
-	for {
-		pos := Position{
-			Y: uint16(rand.N(game.gameMap.Height()-2) + 1),
-			X: uint16(rand.N(game.gameMap.Width()-2) + 1),
-		}
+func (game *Game) randomPosition() Position {
+	pos := Position{
+		Y: uint16(rand.N(game.gameMap.Height()-2) + 1),
+		X: uint16(rand.N(game.gameMap.Width()-2) + 1),
+	}
 
-		if !game.gameMap.IsWall(pos) {
-			return pos
+	if game.gameMap.IsWall(pos) {
+		return game.randomPosition()
+	}
+
+	for _, player := range game.players {
+		if collision := pos.getCollision(player.Occupied); collision != nil {
+			return game.randomPosition()
 		}
 	}
+
+	return pos
 }
 
 func (self Position) getCollision(others []Position) *int {

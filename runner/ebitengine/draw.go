@@ -127,16 +127,45 @@ func drawGameField(screen *ebiten.Image, world []game.FieldPos) {
 		case game.Wall:
 			drawRect(fieldPos, color.Gray{150})
 		case game.Empty:
-			drawRect(fieldPos, color.Black)
-		case game.SnakePlayer:
-			drawRect(fieldPos, color.RGBA{30, 144, 255, 255})
-		case game.SnakeOpponent:
-			drawRect(fieldPos, color.RGBA{220, 20, 60, 255})
+			drawRect(fieldPos, color.RGBA{0, 0, 0, 0})
 		case game.Candy:
 			drawCircle(fieldPos, color.RGBA{255, 215, 0, 255})
-		default:
-			drawRect(fieldPos, color.White)
 		}
+	}
+}
+
+var snakecolors = []color.Color{
+	color.RGBA{204, 0, 0, 255},
+	color.RGBA{204, 102, 0, 255},
+	color.RGBA{102, 204, 0, 255},
+	color.RGBA{204, 0, 204, 255},
+}
+
+func drawSnakes(screen *ebiten.Image, player game.Snake, oppenents []game.Snake) {
+	drawRect := func(pos game.Position, c color.Color) {
+		vector.DrawFilledRect(
+			screen,
+			float32(pos.X*gridSize-gridSize),
+			float32(pos.Y*gridSize-gridSize),
+			float32(gridSize),
+			float32(gridSize),
+			c,
+			false,
+		)
+	}
+
+	for i, opp := range oppenents {
+		for _, pos := range opp.Occupied {
+			if i >= 0 && i < len(snakecolors) {
+				drawRect(pos, snakecolors[i])
+			} else {
+				drawRect(pos, color.RGBA{30, 144, 255, 255})
+			}
+		}
+	}
+
+	for _, pos := range player.Occupied {
+		drawRect(pos, color.RGBA{30, 144, 255, 255})
 	}
 }
 
