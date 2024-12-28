@@ -41,6 +41,53 @@ func NewMap(level, gameWidth, gameHeight uint16) *Map {
 			walls[gameHeight/4+height+1][gameWidth/4] = true
 			walls[gameHeight/4+height+1][gameHeight-gameHeight/4] = true
 		}
+	case 6:
+		wallLen := gameHeight/2 - gameHeight/8
+		for height := uint16(1); height <= wallLen; height++ {
+			for i := uint16(1); i < 7; i++ {
+				walls[height][gameWidth/7*i+1] = true
+			}
+			for i := uint16(1); i < 7; i++ {
+				walls[gameHeight-height][gameWidth/7*i+1] = true
+			}
+		}
+	case 7:
+		for height := uint16(1); height <= gameHeight; height++ {
+			if height%2 == 0 {
+				walls[height][gameWidth/2] = true
+			}
+		}
+	case 8:
+		wallLen := gameHeight - gameHeight/6
+		for i := uint16(1); i < 7; i++ {
+			for height := uint16(1); height <= wallLen; height++ {
+				if i%2 == 0 {
+					walls[height][gameWidth/7*i+1] = true
+				} else {
+					walls[gameHeight-height][gameWidth/7*i+1] = true
+				}
+			}
+		}
+	case 9:
+		width := uint16(5)
+		height := uint16(15)
+		for {
+			if width+5 > gameWidth || height+5 > gameHeight {
+				break
+			}
+			walls[height][width] = true
+			walls[height-10][width+10] = true
+			width += 1
+			height += 1
+		}
+	case 10:
+		for i := uint16(1); i < 7; i++ {
+			for height := uint16(1); height <= gameHeight; height++ {
+				if (height+i)%2 == 0 {
+					walls[height][gameWidth/7*i+1] = true
+				}
+			}
+		}
 	}
 
 	return &Map{gameWidth, gameHeight, walls}

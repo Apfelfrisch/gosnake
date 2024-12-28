@@ -53,15 +53,6 @@ func drawPlayerInfo(screen *ebiten.Image, payload *client.Payload) {
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(color.White)
 
-	op.GeoM.Translate(playerInfoXOffset, 50)
-	text.Draw(screen, "Lives:", face, op)
-	op.GeoM.Translate(0, 30)
-	text.Draw(screen, "Perks:", face, op)
-
-	op.GeoM.Reset()
-	op.GeoM.Translate(playerInfoXOffset+70, 50)
-	text.Draw(screen, fmt.Sprintf("%d", payload.Player.Lives), face, op)
-
 	sortPerkNames := func(perks game.Perks) []game.PerkType {
 		pNames := make([]game.PerkType, 0, len(payload.Player.Perks))
 		for key := range payload.Player.Perks {
@@ -74,26 +65,31 @@ func drawPlayerInfo(screen *ebiten.Image, payload *client.Payload) {
 		return pNames
 	}
 
+	op.GeoM.Translate(playerInfoXOffset, 50)
+	text.Draw(screen, "Lives:", face, op)
+	op.GeoM.Translate(70, 0)
+	text.Draw(screen, fmt.Sprintf("%d", payload.Player.Lives), face, op)
+	op.GeoM.Translate(-70, 30)
+	text.Draw(screen, "Perks:", face, op)
+	op.GeoM.Translate(70, 0)
 	for _, pName := range sortPerkNames(payload.Player.Perks) {
-		op.GeoM.Translate(0, 30)
 		text.Draw(screen, fmt.Sprintf("%v (%v)", pName, payload.Player.Perks[pName].Usages), face, op)
+		op.GeoM.Translate(0, 30)
 	}
 
 	for _, oppenent := range payload.Opponents {
-		op.GeoM.Reset()
-		op.GeoM.Translate(playerInfoXOffset, 140)
+		op.GeoM.Translate(-70, 0)
 		text.Draw(screen, "---", face, op)
 		op.GeoM.Translate(0, 30)
 		text.Draw(screen, "Lives:", face, op)
-		op.GeoM.Translate(0, 30)
-		text.Draw(screen, "Perks:", face, op)
-
-		op.GeoM.Reset()
-		op.GeoM.Translate(playerInfoXOffset+70, 170)
+		op.GeoM.Translate(70, 0)
 		text.Draw(screen, fmt.Sprintf("%d", oppenent.Lives), face, op)
+		op.GeoM.Translate(-70, 30)
+		text.Draw(screen, "Perks:", face, op)
+		op.GeoM.Translate(70, 0)
 		for _, pName := range sortPerkNames(oppenent.Perks) {
-			op.GeoM.Translate(0, 30)
 			text.Draw(screen, fmt.Sprintf("%v (%v)", pName, oppenent.Perks[pName].Usages), face, op)
+			op.GeoM.Translate(0, 30)
 		}
 	}
 }

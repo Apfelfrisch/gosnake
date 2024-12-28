@@ -129,7 +129,7 @@ func (game *Game) Tick() {
 	if candyCount >= MapSwitch {
 		game.level += 1
 
-		if game.level >= 6 {
+		if game.level > 10 {
 			game.state = GameFinished
 		} else {
 			game.state = RoundFinished
