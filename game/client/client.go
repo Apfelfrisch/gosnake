@@ -24,12 +24,13 @@ func Connect(serverAddr string) *GameClient {
 		time.Sleep(time.Second / 10)
 	}
 
-	return &GameClient{tcp: tcp, Payload: &Payload{}}
+	return &GameClient{tcp, &Payload{}, NewEventBus()}
 }
 
 type GameClient struct {
-	tcp     *Tcp
-	Payload *Payload
+	tcp      *Tcp
+	Payload  *Payload
+	EventBus *EventBus
 }
 
 func (gc *GameClient) PressKey(char rune) {
@@ -37,7 +38,69 @@ func (gc *GameClient) PressKey(char rune) {
 }
 
 func (gc *GameClient) UpdatePayload() {
+	stalePayload := gc.Payload
+	gc.Payload = &Payload{}
+
 	json.Unmarshal([]byte(gc.tcp.Read()), gc.Payload)
+
+	if stalePayload.GameState != gc.Payload.GameState {
+		if gc.Payload.GameState == game.Ongoing {
+			gc.EventBus.Dispatch(GameHasStarted{})
+		} else {
+			gc.EventBus.Dispatch(GameHasEnded{})
+		}
+	}
+
+	if stalePayload.GameState != game.Ongoing {
+		return
+	}
+
+	if stalePayload.Player.Points != gc.Payload.Player.Points {
+		gc.EventBus.Dispatch(PlayerHasEaten{})
+	} else {
+		for i, opp := range gc.Payload.Opponents {
+			if opp.Points != stalePayload.Opponents[i].Points {
+				gc.EventBus.Dispatch(PlayerHasEaten{})
+				break
+			}
+		}
+	}
+	if stalePayload.Player.Lives != gc.Payload.Player.Lives {
+		gc.EventBus.Dispatch(PlayerCrashed{})
+	} else {
+		for i, opp := range gc.Payload.Opponents {
+			if opp.Lives != stalePayload.Opponents[i].Lives {
+				gc.EventBus.Dispatch(PlayerCrashed{})
+				break
+			}
+		}
+	}
+
+	if stalePayload.Player.Perks.Get(game.Dash).Usages != gc.Payload.Player.Perks.Get(game.Dash).Usages {
+		gc.EventBus.Dispatch(PlayerDashed{})
+	} else {
+		for i, opp := range gc.Payload.Opponents {
+			if opp.Perks.Get(game.Dash).Usages != stalePayload.Opponents[i].Perks.Get(game.Dash).Usages {
+				gc.EventBus.Dispatch(PlayerDashed{})
+				break
+			}
+		}
+	}
+
+	if stalePayload.Player.Perks.Get(game.WalkWall).Usages != gc.Payload.Player.Perks.Get(game.WalkWall).Usages {
+		gc.EventBus.Dispatch(PlayerWalkedWall{})
+	} else {
+		for i, opp := range gc.Payload.Opponents {
+			if opp.Perks.Get(game.WalkWall).Usages != stalePayload.Opponents[i].Perks.Get(game.WalkWall).Usages {
+				gc.EventBus.Dispatch(PlayerWalkedWall{})
+				break
+			}
+		}
+	}
+}
+
+func (gc *GameClient) AddListener(e Event, l EventListener) {
+	gc.EventBus.Add(e, l)
 }
 
 func (gc *GameClient) World() []game.FieldPos {

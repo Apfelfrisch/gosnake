@@ -171,7 +171,7 @@ func (game *Game) handelCollision(playerIndex int) {
 
 	// Snake gets Candy
 	if candyIndex := player.head().getCollision(game.candies); candyIndex != nil {
-		player.grows += growsSize
+		player.eat(growsSize)
 		game.candies[*candyIndex] = game.randomPosition()
 	}
 }
@@ -188,7 +188,7 @@ func (game *Game) Dash(playerIndex int) {
 	}
 
 	if playerIndex >= 0 && playerIndex < len(game.players) {
-		if ok := game.players[playerIndex].Perks.use(dash); !ok {
+		if ok := game.players[playerIndex].Perks.use(Dash); !ok {
 			return
 		}
 

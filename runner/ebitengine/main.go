@@ -19,6 +19,33 @@ type Engine struct {
 	client *gclient.GameClient
 }
 
+func NewEninge(serverAddr string) *Engine {
+	player := NewPlayer()
+	client := gclient.Connect(serverAddr)
+	client.EventBus.Add(gclient.PlayerHasEaten{}, func(event gclient.Event) {
+		player.Play(Eat)
+	})
+	client.EventBus.Add(gclient.PlayerDashed{}, func(event gclient.Event) {
+		player.Play(Dash)
+	})
+	client.EventBus.Add(gclient.PlayerWalkedWall{}, func(event gclient.Event) {
+		player.Play(WalkWall)
+	})
+	client.EventBus.Add(gclient.PlayerCrashed{}, func(event gclient.Event) {
+		player.Play(Crash)
+	})
+	client.EventBus.Add(gclient.GameHasStarted{}, func(event gclient.Event) {
+		player.PlayMusic()
+	})
+	client.EventBus.Add(gclient.GameHasEnded{}, func(event gclient.Event) {
+		player.PauseMusic()
+	})
+
+	return &Engine{
+		client: client,
+	}
+}
+
 func (e *Engine) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
 		e.client.PressKey('w')
@@ -60,6 +87,13 @@ func (e *Engine) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHei
 }
 
 func main() {
+	// bus := gclient.NewEventBus()
+	// bus.Add(gclient.CandyWasEaten{}, func(event gclient.Event) {
+	// 	fmt.Println("Hi ho")
+	// })
+
+	// bus.Dispatch(gclient.CandyWasEaten{})
+
 	// go func() {
 	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
 	// }()
@@ -80,9 +114,7 @@ func main() {
 		buildServer(*playerCount, *serverAddr).RunBackground()
 	}
 
-	client := gclient.Connect(*serverAddr)
-
-	if err := ebiten.RunGame(&Engine{client}); err != nil {
+	if err := ebiten.RunGame(NewEninge(*serverAddr)); err != nil {
 		log.Fatal(err)
 	}
 }

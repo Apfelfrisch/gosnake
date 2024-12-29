@@ -5,13 +5,15 @@ type Snake struct {
 	Lives     uint8      `json:"li"`
 	Occupied  []Position `json:"oc"`
 	Direction direction  `json:"dr"`
+	Points    uint16     `json:"pt"`
 	grows     uint8
 }
 
 func newSnake(x uint16, y uint16, direction direction) Snake {
 	return Snake{
 		Lives:     10,
-		Perks:     Perks{walkWall: {Usages: 3}, dash: {Usages: 3}},
+		Points:    0,
+		Perks:     Perks{WalkWall: {Usages: 3}, Dash: {Usages: 3}},
 		Direction: direction,
 		Occupied:  []Position{{X: x, Y: y}},
 		grows:     0,
@@ -21,7 +23,7 @@ func newSnake(x uint16, y uint16, direction direction) Snake {
 func (snake *Snake) reset(x int, y int, direction direction) {
 	snake.Occupied = []Position{{X: uint16(x), Y: uint16(y)}}
 	snake.Direction = direction
-	snake.Perks = Perks{walkWall: {Usages: 3}, dash: {Usages: 3}}
+	snake.Perks = Perks{WalkWall: {Usages: 3}, Dash: {Usages: 3}}
 	snake.grows = 0
 }
 
@@ -44,6 +46,11 @@ func (snake *Snake) ChangeDirection(direction direction) {
 			snake.Direction = direction
 		}
 	}
+}
+
+func (snake *Snake) eat(grows uint8) {
+	snake.grows = grows
+	snake.Points += 1
 }
 
 func (snake *Snake) head() Position {
@@ -96,7 +103,7 @@ func (snake *Snake) move() {
 func (snake *Snake) walkWalls(game *Game) {
 	position := snake.head()
 
-	if ok := snake.Perks.use(walkWall); !ok {
+	if ok := snake.Perks.use(WalkWall); !ok {
 		return
 	}
 
@@ -111,7 +118,7 @@ func (snake *Snake) walkWalls(game *Game) {
 		position.Y = game.Height() - 1
 	} else {
 		// Perk was not needed
-		snake.Perks.reload(walkWall, 1)
+		snake.Perks.reload(WalkWall, 1)
 		return
 	}
 
