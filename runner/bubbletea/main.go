@@ -4,8 +4,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/apfelfrisch/gosnake/game/client"
-	gclient "github.com/apfelfrisch/gosnake/game/client"
+	"github.com/apfelfrisch/gosnake/game/network/client"
+	gclient "github.com/apfelfrisch/gosnake/game/network/client"
 	tea "github.com/charmbracelet/bubbletea"
 )
 

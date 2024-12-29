@@ -118,6 +118,7 @@ func (s *Tcp) handleSeverReading(conn net.Conn, inputChan chan rune) {
 func (s *Tcp) handleServerWriting(conn net.Conn, outputChan byteBufferChan) {
 	for {
 		message := <-outputChan
+
 		compressed := snappy.Encode(nil, message[0])
 
 		var lengthBuffer bytes.Buffer

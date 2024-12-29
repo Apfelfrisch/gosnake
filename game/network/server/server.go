@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
+	"github.com/apfelfrisch/gosnake/game/network/payload"
 )
 
 const GameSpeed = time.Second / 10
@@ -105,15 +106,26 @@ func (s *GameServer) broadcastState() {
 		opponents = append(opponents, players[:i]...)
 		opponents = append(opponents, players[i+1:]...)
 
-		bytes, err := json.Marshal(Payload{
-			World:     SerializeWorld(i, s.game),
+		var bytes []byte
+		var err error
+
+		world := ""
+		if s.game.State() != game.Ongoing {
+			world = SerializeWorld(i, s.game)
+		}
+
+		bytes, err = json.Marshal(payload.Payload{
+			World:     world,
 			GameState: s.game.State(),
+			Candies:   s.game.Candies(),
 			Player:    players[i],
 			Opponents: opponents,
 		})
+
 		if err != nil {
 			continue
 		}
+
 		s.tcp.WriteConn(i, bytes)
 	}
 }

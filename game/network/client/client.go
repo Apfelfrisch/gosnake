@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
+	"github.com/apfelfrisch/gosnake/game/network/payload"
 )
 
 func Connect(serverAddr string) *GameClient {
@@ -24,13 +25,14 @@ func Connect(serverAddr string) *GameClient {
 		time.Sleep(time.Second / 10)
 	}
 
-	return &GameClient{tcp, &Payload{}, NewEventBus()}
+	return &GameClient{tcp, &payload.Payload{}, NewEventBus(), ""}
 }
 
 type GameClient struct {
-	tcp      *Tcp
-	Payload  *Payload
-	EventBus *EventBus
+	tcp         *Tcp
+	Payload     *payload.Payload
+	EventBus    *EventBus
+	cachedWorld string
 }
 
 func (gc *GameClient) PressKey(char rune) {
@@ -39,9 +41,15 @@ func (gc *GameClient) PressKey(char rune) {
 
 func (gc *GameClient) UpdatePayload() {
 	stalePayload := gc.Payload
-	gc.Payload = &Payload{}
+	gc.Payload = &payload.Payload{}
 
 	json.Unmarshal([]byte(gc.tcp.Read()), gc.Payload)
+
+	if gc.Payload.World != "" {
+		gc.cachedWorld = gc.Payload.World
+	} else {
+		gc.Payload.World = gc.cachedWorld
+	}
 
 	if stalePayload.GameState != gc.Payload.GameState {
 		if gc.Payload.GameState == game.Ongoing {
@@ -55,22 +63,27 @@ func (gc *GameClient) UpdatePayload() {
 		return
 	}
 
-	if stalePayload.Player.Points != gc.Payload.Player.Points {
-		gc.EventBus.Dispatch(PlayerHasEaten{})
-	} else {
-		for i, opp := range gc.Payload.Opponents {
-			if opp.Points != stalePayload.Opponents[i].Points {
-				gc.EventBus.Dispatch(PlayerHasEaten{})
-				break
-			}
-		}
-	}
 	if stalePayload.Player.Lives != gc.Payload.Player.Lives {
 		gc.EventBus.Dispatch(PlayerCrashed{})
 	} else {
 		for i, opp := range gc.Payload.Opponents {
 			if opp.Lives != stalePayload.Opponents[i].Lives {
 				gc.EventBus.Dispatch(PlayerCrashed{})
+				break
+			}
+		}
+	}
+
+	if gc.Payload.GameState != game.Ongoing {
+		return
+	}
+
+	if stalePayload.Player.Points != gc.Payload.Player.Points {
+		gc.EventBus.Dispatch(PlayerHasEaten{})
+	} else {
+		for i, opp := range gc.Payload.Opponents {
+			if opp.Points != stalePayload.Opponents[i].Points {
+				gc.EventBus.Dispatch(PlayerHasEaten{})
 				break
 			}
 		}

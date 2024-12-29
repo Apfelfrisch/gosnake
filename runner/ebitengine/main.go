@@ -9,8 +9,8 @@ import (
 	// _ "net/http/pprof"
 
 	"github.com/apfelfrisch/gosnake/game"
-	gclient "github.com/apfelfrisch/gosnake/game/client"
-	gserver "github.com/apfelfrisch/gosnake/game/server"
+	gclient "github.com/apfelfrisch/gosnake/game/network/client"
+	gserver "github.com/apfelfrisch/gosnake/game/network/server"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
@@ -76,6 +76,7 @@ func (e *Engine) Draw(screen *ebiten.Image) {
 	} else if e.client.Payload.GameState == game.GameFinished {
 		drawFinishScreen(screen, e.client.Payload.Player)
 	} else {
+		drawCandies(screen, e.client.Payload.Candies)
 		drawSnakes(screen, e.client.Payload.Player, e.client.Payload.Opponents)
 		drawGameField(screen, e.client.World())
 	}
@@ -87,13 +88,6 @@ func (e *Engine) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHei
 }
 
 func main() {
-	// bus := gclient.NewEventBus()
-	// bus.Add(gclient.CandyWasEaten{}, func(event gclient.Event) {
-	// 	fmt.Println("Hi ho")
-	// })
-
-	// bus.Dispatch(gclient.CandyWasEaten{})
-
 	// go func() {
 	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
 	// }()

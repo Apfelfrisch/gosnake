@@ -204,6 +204,10 @@ func (game *Game) Players() []Snake {
 	return game.players
 }
 
+func (game *Game) Candies() []Position {
+	return game.candies
+}
+
 func (game *Game) randomPosition() Position {
 	pos := Position{
 		Y: uint16(rand.N(game.gameMap.Height()-2) + 1),

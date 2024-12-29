@@ -8,7 +8,7 @@ import (
 	"sort"
 
 	"github.com/apfelfrisch/gosnake/game"
-	"github.com/apfelfrisch/gosnake/game/client"
+	"github.com/apfelfrisch/gosnake/game/network/payload"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -25,7 +25,7 @@ const (
 
 const playerInfoXOffset = gameWidth + 10
 
-func drawPlayerInfo(screen *ebiten.Image, payload *client.Payload) {
+func drawPlayerInfo(screen *ebiten.Image, payload *payload.Payload) {
 	// Background for the stats panel
 	statsBgColor := color.RGBA{50, 50, 50, 255}
 	statsPanelWidth := displayWidth - gameWidth
@@ -107,25 +107,12 @@ func drawGameField(screen *ebiten.Image, world []game.FieldPos) {
 		)
 	}
 
-	drawCircle := func(fieldPos game.FieldPos, c color.Color) {
-		vector.DrawFilledCircle(
-			screen,
-			float32(fieldPos.X*gridSize-gridSize/2),
-			float32(fieldPos.Y*gridSize-gridSize/2),
-			float32(gridSize)/2,
-			c,
-			true,
-		)
-	}
-
 	for _, fieldPos := range world {
 		switch fieldPos.Field {
 		case game.Wall:
 			drawRect(fieldPos, color.Gray{150})
 		case game.Empty:
 			drawRect(fieldPos, color.RGBA{0, 0, 0, 0})
-		case game.Candy:
-			drawCircle(fieldPos, color.RGBA{255, 215, 0, 255})
 		}
 	}
 }
@@ -162,6 +149,23 @@ func drawSnakes(screen *ebiten.Image, player game.Snake, oppenents []game.Snake)
 
 	for _, pos := range player.Occupied {
 		drawRect(pos, color.RGBA{30, 144, 255, 255})
+	}
+}
+
+func drawCandies(screen *ebiten.Image, candies []game.Position) {
+	drawCircle := func(pos game.Position, c color.Color) {
+		vector.DrawFilledCircle(
+			screen,
+			float32(pos.X*gridSize-gridSize/2),
+			float32(pos.Y*gridSize-gridSize/2),
+			float32(gridSize)/2,
+			c,
+			true,
+		)
+	}
+
+	for _, pos := range candies {
+		drawCircle(pos, color.RGBA{255, 215, 0, 255})
 	}
 }
 
