@@ -176,7 +176,7 @@ func (game *Game) handelCollision(playerIndex int) {
 	}
 }
 
-func (game *Game) ChangeDirection(playerIndex int, direction direction) {
+func (game *Game) ChangeDirection(playerIndex int, direction Direction) {
 	if playerIndex >= 0 && playerIndex < len(game.players) {
 		game.players[playerIndex].ChangeDirection(direction)
 	}

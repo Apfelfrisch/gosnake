@@ -4,7 +4,6 @@ import (
 	"flag"
 	"log"
 	"os"
-	"time"
 
 	// _ "net/http/pprof"
 
@@ -119,24 +118,4 @@ func buildServer(playerCount int, addr string) *gserver.GameServer {
 		addr,
 		game.NewGame(playerCount, gameWidth/gridSize, gameHeight/gridSize),
 	)
-}
-
-func connectClient(addr string) *gclient.Tcp {
-	client := gclient.NewTcpClient(addr)
-
-	for i := 0; i < 10; i++ {
-		if err := client.Connect(); err == nil {
-			break
-		}
-		time.Sleep(time.Second / 5)
-	}
-
-	for {
-		if client.Read() != "" {
-			break
-		}
-		time.Sleep(time.Second / 10)
-	}
-
-	return client
 }

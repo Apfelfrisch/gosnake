@@ -4,12 +4,12 @@ type Snake struct {
 	Perks     Perks      `json:"pk"`
 	Lives     uint8      `json:"li"`
 	Occupied  []Position `json:"oc"`
-	Direction direction  `json:"dr"`
+	Direction Direction  `json:"dr"`
 	Points    uint16     `json:"pt"`
 	grows     uint8
 }
 
-func newSnake(x uint16, y uint16, direction direction) Snake {
+func newSnake(x uint16, y uint16, direction Direction) Snake {
 	return Snake{
 		Lives:     10,
 		Points:    0,
@@ -20,14 +20,14 @@ func newSnake(x uint16, y uint16, direction direction) Snake {
 	}
 }
 
-func (snake *Snake) reset(x int, y int, direction direction) {
+func (snake *Snake) reset(x int, y int, direction Direction) {
 	snake.Occupied = []Position{{X: uint16(x), Y: uint16(y)}}
 	snake.Direction = direction
 	snake.Perks = Perks{WalkWall: {Usages: 3}, Dash: {Usages: 3}}
 	snake.grows = 0
 }
 
-func (snake *Snake) ChangeDirection(direction direction) {
+func (snake *Snake) ChangeDirection(direction Direction) {
 	switch direction {
 	case North:
 		if snake.Direction != South {

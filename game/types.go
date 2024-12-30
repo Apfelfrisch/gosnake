@@ -2,10 +2,10 @@ package game
 
 import "encoding/json"
 
-type direction int
+type Direction int
 
 const (
-	East direction = iota
+	East Direction = iota
 	North
 	South
 	West

@@ -1,11 +1,11 @@
 package client
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
 	"github.com/apfelfrisch/gosnake/game/network/payload"
+	"google.golang.org/protobuf/proto"
 )
 
 func Connect(serverAddr string) *GameClient {
@@ -19,7 +19,7 @@ func Connect(serverAddr string) *GameClient {
 	}
 
 	for {
-		if tcp.Read() != "" {
+		if len(tcp.Read()) != 0 {
 			break
 		}
 		time.Sleep(time.Second / 10)
@@ -40,10 +40,14 @@ func (gc *GameClient) PressKey(char rune) {
 }
 
 func (gc *GameClient) UpdatePayload() {
-	stalePayload := gc.Payload
-	gc.Payload = &payload.Payload{}
+	stalePayload := *gc.Payload
 
-	json.Unmarshal([]byte(gc.tcp.Read()), gc.Payload)
+	ppl := &payload.ProtoPayload{}
+	err := proto.Unmarshal(gc.tcp.Read(), ppl)
+	if err != nil {
+		panic(err)
+	}
+	*gc.Payload = payload.PayloadFromProto(ppl)
 
 	if gc.Payload.World != "" {
 		gc.cachedWorld = gc.Payload.World

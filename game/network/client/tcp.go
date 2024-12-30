@@ -10,6 +10,9 @@ import (
 	"github.com/golang/snappy"
 )
 
+type byteBuffer [1][]byte
+type byteBufferChan chan [1][]byte
+
 func NewTcpClient(addr string) *Tcp {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", addr)
 	if err != nil {
@@ -18,7 +21,7 @@ func NewTcpClient(addr string) *Tcp {
 
 	return &Tcp{
 		server:     tcpAddr,
-		inputChan:  make(chan [1]string, 1),
+		inputChan:  make(byteBufferChan, 1),
 		outputChan: make(chan rune, 3),
 	}
 }
@@ -26,8 +29,8 @@ func NewTcpClient(addr string) *Tcp {
 type Tcp struct {
 	server     *net.TCPAddr
 	conn       *net.TCPConn
-	input      string
-	inputChan  chan [1]string
+	input      []byte
+	inputChan  byteBufferChan
 	outputChan chan rune
 }
 
@@ -47,7 +50,7 @@ func (c *Tcp) Connect() error {
 
 // Blocking or not, thats the question
 // For now, we dont block
-func (c *Tcp) Read() string {
+func (c *Tcp) Read() []byte {
 	select {
 	case value := <-c.inputChan:
 		c.input = value[0]
@@ -68,7 +71,7 @@ func (c *Tcp) Write(char rune) {
 	}
 }
 
-func handleClientReading(conn net.Conn, inputChan chan [1]string) {
+func handleClientReading(conn net.Conn, inputChan byteBufferChan) {
 	for {
 		// Read Payload length
 		var lengthBuffer [4]byte
@@ -95,11 +98,11 @@ func handleClientReading(conn net.Conn, inputChan chan [1]string) {
 
 		select {
 		// Try to write to the channel
-		case inputChan <- [1]string{string(decompressed)}:
+		case inputChan <- byteBuffer{decompressed}:
 		// Otherwise clear channel
 		default:
 			<-inputChan
-			inputChan <- [1]string{string(decompressed)}
+			inputChan <- byteBuffer{decompressed}
 		}
 	}
 }

@@ -1,13 +1,13 @@
 package server
 
 import (
-	"encoding/json"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
 	"github.com/apfelfrisch/gosnake/game/network/payload"
+	"google.golang.org/protobuf/proto"
 )
 
 const GameSpeed = time.Second / 10
@@ -114,16 +114,17 @@ func (s *GameServer) broadcastState() {
 			world = SerializeWorld(i, s.game)
 		}
 
-		bytes, err = json.Marshal(payload.Payload{
+		pl := payload.Payload{
 			World:     world,
 			GameState: s.game.State(),
 			Candies:   s.game.Candies(),
 			Player:    players[i],
 			Opponents: opponents,
-		})
+		}
 
+		bytes, err = proto.Marshal(pl.ToProto())
 		if err != nil {
-			continue
+			panic(err)
 		}
 
 		s.tcp.WriteConn(i, bytes)

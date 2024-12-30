@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package payload;
+
+// Enums
+enum ProtoGameState {
+  PROTO_GAME_STATE_PAUSED = 0;
+  PROTO_GAME_STATE_ONGOING = 1;
+  PROTO_GAME_STATE_ROUND_FINISHED = 2;
+  PROTO_GAME_STATE_GAME_FINISHED = 3;
+}
+
+enum ProtoPerkType {
+  PROTO_PERK_TYPE_UNSPECIFIED = 0;
+  PROTO_PERK_TYPE_WALK_WALL = 1;
+  PROTO_PERK_TYPE_DASH = 2;
+}
+
+enum ProtoDirection {
+  PROTO_DIRECTION_EAST = 0;
+  PROTO_DIRECTION_NORTH = 1;
+  PROTO_DIRECTION_SOUTH = 2;
+  PROTO_DIRECTION_WEST = 3;
+}
+
+// Messages
+message ProtoPosition {
+  uint32 y = 1;
+  uint32 x = 2;
+}
+
+message ProtoPerk {
+  ProtoPerkType type = 1;
+  uint32 usages = 2;
+}
+
+message ProtoSnake {
+  map<int32, ProtoPerk> perks = 1; // Perks map keyed by ProtoPerkType.
+  uint32 lives = 2;
+  repeated ProtoPosition occupied = 3;
+  ProtoDirection direction = 4;
+  uint32 points = 5;
+  // uint32 grows = 6;
+}
+
+message ProtoPayload {
+  string world = 1;
+  ProtoGameState game_state = 2;
+  repeated ProtoPosition candies = 3;
+  ProtoSnake player = 4;
+  repeated ProtoSnake opponents = 5;
+}

@@ -62,11 +62,11 @@ func (s *Tcp) WriteConn(connIndex int, content []byte) {
 
 	select {
 	// Try to write to the channel
-	case s.outputChans[connIndex] <- byteBuffer{append(content, byte(10))}:
+	case s.outputChans[connIndex] <- byteBuffer{content}:
 	// Otherwise clear channel
 	default:
 		<-s.outputChans[connIndex]
-		s.outputChans[connIndex] <- byteBuffer{append(content, byte(10))}
+		s.outputChans[connIndex] <- byteBuffer{content}
 	}
 }
 
