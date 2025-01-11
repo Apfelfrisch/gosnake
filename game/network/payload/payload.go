@@ -3,7 +3,7 @@ package payload
 import "github.com/apfelfrisch/gosnake/game"
 
 type Payload struct {
-	World     string          `json:"w"`
+	MapLevel  uint16          `json:"w"`
 	GameState game.GameState  `json:"gs"`
 	Candies   []game.Position `json:"ca"`
 	Player    game.Snake      `json:"pl"`
@@ -22,7 +22,7 @@ func PayloadFromProto(protoPayload *ProtoPayload) Payload {
 	}
 
 	return Payload{
-		World:     protoPayload.World,
+		MapLevel:  uint16(protoPayload.MapLevel),
 		GameState: game.GameState(protoPayload.GameState),
 		Candies:   candies,
 		Player:    snakeFromProto(protoPayload.Player),
@@ -42,7 +42,7 @@ func (payload Payload) ToProto() *ProtoPayload {
 	}
 
 	return &ProtoPayload{
-		World:     payload.World,
+		MapLevel:  uint32(payload.MapLevel),
 		GameState: ProtoGameState(payload.GameState),
 		Candies:   candies,
 		Player:    snakeToProto(payload.Player),

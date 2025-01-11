@@ -44,7 +44,7 @@ message ProtoSnake {
 }
 
 message ProtoPayload {
-  string world = 1;
+  uint32 map_level = 1;
   ProtoGameState game_state = 2;
   repeated ProtoPosition candies = 3;
   ProtoSnake player = 4;

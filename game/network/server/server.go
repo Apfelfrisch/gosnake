@@ -2,7 +2,6 @@ package server
 
 import (
 	"net"
-	"strings"
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
@@ -102,7 +101,6 @@ func (s *GameServer) Update() {
 
 func (s *GameServer) broadcastState() {
 	players := s.game.Players()
-
 	for i, conn := range s.udp.conns {
 		opponents := make([]game.Snake, 0, len(players)-1)
 		opponents = append(opponents, players[:i]...)
@@ -111,10 +109,8 @@ func (s *GameServer) broadcastState() {
 		var bytes []byte
 		var err error
 
-		world := SerializeWorld(i, s.game)
-
 		pl := payload.Payload{
-			World:     world,
+			MapLevel:  s.game.Level(),
 			GameState: s.game.State(),
 			Candies:   s.game.Candies(),
 			Player:    players[i],
@@ -128,23 +124,4 @@ func (s *GameServer) broadcastState() {
 
 		s.udp.WriteConn(conn, bytes)
 	}
-}
-
-func SerializeWorld(playerIndex int, g *game.Game) string {
-	var sb strings.Builder
-
-	var x, y uint16
-	for y = 1; y <= g.Height(); y++ {
-		for x = 1; x <= g.Width(); x++ {
-			field := g.Field(playerIndex, game.Position{Y: uint16(y), X: uint16(x)})
-			if field == game.SnakePlayer || field == game.SnakeOpponent {
-				sb.WriteRune(rune(game.Empty))
-			} else {
-				sb.WriteRune(rune(field))
-			}
-		}
-		sb.WriteRune('|')
-	}
-
-	return sb.String()
 }

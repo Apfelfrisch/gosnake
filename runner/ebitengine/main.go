@@ -15,12 +15,14 @@ import (
 )
 
 type Engine struct {
-	client *gclient.GameClient
+	localPlayer    clientSnake
+	localOpponents []clientSnake
+	client         *gclient.GameClient
 }
 
-func NewEninge(serverAddr string) *Engine {
+func NewEninge(serverAddr string, playerCount int) *Engine {
 	player := NewPlayer()
-	client := gclient.Connect(serverAddr)
+	client := gclient.Connect(serverAddr, gameWidth/gridSize, gameHeight/gridSize)
 	client.EventBus.Add(gclient.PlayerHasEaten{}, func(event gclient.Event) {
 		player.Play(Eat)
 	})
@@ -40,8 +42,14 @@ func NewEninge(serverAddr string) *Engine {
 		player.PauseMusic()
 	})
 
+	localPlayer := clientSnake{
+		gridSize:   gridSize,
+		interPixel: 0,
+	}
 	return &Engine{
-		client: client,
+		client:         client,
+		localPlayer:    localPlayer,
+		localOpponents: []clientSnake{},
 	}
 }
 
@@ -70,13 +78,15 @@ func (e *Engine) Update() error {
 func (e *Engine) Draw(screen *ebiten.Image) {
 	e.client.UpdatePayload()
 
-	if e.client.Payload.GameState == game.Paused {
+	if e.client.Payload.GameState == game.Paused || e.client.Payload.GameState == game.RoundFinished {
+		e.localPlayer.sync(e.client.Payload.Player)
 		drawPausedScreen(screen)
 	} else if e.client.Payload.GameState == game.GameFinished {
+		e.localPlayer.sync(e.client.Payload.Player)
 		drawFinishScreen(screen, e.client.Payload.Player)
 	} else {
 		drawCandies(screen, e.client.Payload.Candies)
-		drawSnakes(screen, e.client.Payload.Player, e.client.Payload.Opponents)
+		drawSnakes(screen, e)
 		drawGameField(screen, e.client.World())
 	}
 	drawPlayerInfo(screen, e.client.Payload)
@@ -107,7 +117,7 @@ func main() {
 		buildServer(*playerCount, *serverAddr).RunBackground()
 	}
 
-	if err := ebiten.RunGame(NewEninge(*serverAddr)); err != nil {
+	if err := ebiten.RunGame(NewEninge(*serverAddr, *playerCount)); err != nil {
 		log.Fatal(err)
 	}
 }

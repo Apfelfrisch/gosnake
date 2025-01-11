@@ -19,7 +19,7 @@ func NewGame(player, width, height int) *Game {
 	var players []Snake
 
 	for i := 1; i <= player; i++ {
-		players = append(players, newSnake(uint16(i*5), uint16(i*5), East))
+		players = append(players, NewSnake(uint16(i*5), uint16(i*5), East))
 	}
 
 	game := &Game{
@@ -31,6 +31,10 @@ func NewGame(player, width, height int) *Game {
 	game.candies = []Position{game.randomPosition()}
 
 	return game
+}
+
+func (game *Game) Level() uint16 {
+	return game.level
 }
 
 func (game *Game) State() GameState {
@@ -65,7 +69,7 @@ func (game *Game) Reset() {
 	} else {
 		var players []Snake
 		for i := 1; i <= len(game.players); i++ {
-			players = append(players, newSnake(uint16(i*5), uint16(i*5), East))
+			players = append(players, NewSnake(uint16(i*5), uint16(i*5), East))
 		}
 
 		game.level = 1
@@ -149,11 +153,11 @@ func (game *Game) handelCollision(playerIndex int) {
 		}
 	}
 
-	if game.gameMap.IsWall(player.head()) {
+	if game.gameMap.IsWall(player.Head()) {
 		handleCollision()
 		return
 	}
-	if collision := player.head().getCollision(player.body()); collision != nil {
+	if collision := player.Head().getCollision(player.body()); collision != nil {
 		handleCollision()
 		return
 	}
@@ -163,14 +167,14 @@ func (game *Game) handelCollision(playerIndex int) {
 		if collisionIndex == playerIndex {
 			continue
 		}
-		if collision := player.head().getCollision(collisionPlayer.Occupied); collision != nil {
+		if collision := player.Head().getCollision(collisionPlayer.Occupied); collision != nil {
 			handleCollision()
 			return
 		}
 	}
 
 	// Snake gets Candy
-	if candyIndex := player.head().getCollision(game.candies); candyIndex != nil {
+	if candyIndex := player.Head().getCollision(game.candies); candyIndex != nil {
 		player.eat(growsSize)
 		game.candies[*candyIndex] = game.randomPosition()
 	}

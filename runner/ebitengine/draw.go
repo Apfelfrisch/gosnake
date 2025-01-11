@@ -112,7 +112,11 @@ func drawGameField(screen *ebiten.Image, world []game.FieldPos) {
 		case game.Wall:
 			drawRect(fieldPos, color.Gray{150})
 		case game.Empty:
-			drawRect(fieldPos, color.RGBA{0, 0, 0, 0})
+			if (fieldPos.X+fieldPos.Y)%2 == 0 {
+				drawRect(fieldPos, color.RGBA{13, 13, 13, 0})
+			} else {
+				drawRect(fieldPos, color.RGBA{0, 0, 0, 0})
+			}
 		}
 	}
 }
@@ -124,31 +128,55 @@ var snakecolors = []color.Color{
 	color.RGBA{204, 0, 204, 255},
 }
 
-func drawSnakes(screen *ebiten.Image, player game.Snake, oppenents []game.Snake) {
-	drawRect := func(pos game.Position, c color.Color) {
+func drawSnakes(screen *ebiten.Image, engine *Engine) {
+	intermidiatPixel := 3
+
+	player := engine.client.Payload.Player
+	if engine.localPlayer.outOfsync(player) {
+		engine.localPlayer.sync(player)
+	}
+
+	for _, body := range engine.localPlayer.positions(player.Direction, intermidiatPixel) {
 		vector.DrawFilledRect(
 			screen,
-			float32(pos.X*gridSize-gridSize),
-			float32(pos.Y*gridSize-gridSize),
-			float32(gridSize),
-			float32(gridSize),
-			c,
+			body.x,
+			body.y,
+			body.width,
+			body.height,
+			color.RGBA{30, 144, 255, 255},
 			false,
 		)
 	}
 
-	for i, opp := range oppenents {
-		for _, pos := range opp.Occupied {
-			if i >= 0 && i < len(snakecolors) {
-				drawRect(pos, snakecolors[i])
-			} else {
-				drawRect(pos, color.RGBA{30, 144, 255, 255})
-			}
+	var c color.Color
+	for i, opp := range engine.client.Payload.Opponents {
+		if len(engine.localOpponents) <= i {
+			engine.localOpponents = append(engine.localOpponents, clientSnake{
+				gridSize:    gridSize,
+				serverSnake: opp,
+				interPixel:  0,
+			})
+		} else if engine.localOpponents[i].outOfsync(opp) {
+			engine.localOpponents[i].sync(opp)
 		}
-	}
 
-	for _, pos := range player.Occupied {
-		drawRect(pos, color.RGBA{30, 144, 255, 255})
+		for _, body := range engine.localOpponents[i].positions(opp.Direction, intermidiatPixel) {
+			if i >= 0 && i < len(snakecolors) {
+				c = snakecolors[i]
+			} else {
+				c = color.RGBA{30, 144, 255, 255}
+			}
+
+			vector.DrawFilledRect(
+				screen,
+				body.x,
+				body.y,
+				body.width,
+				body.height,
+				c,
+				false,
+			)
+		}
 	}
 }
 

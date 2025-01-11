@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func Connect(serverAddr string) *GameClient {
+func Connect(serverAddr string, width, height int) *GameClient {
 	udp := NewUdpClient(serverAddr)
 
 	for i := 0; i < 10; i++ {
@@ -26,11 +26,17 @@ func Connect(serverAddr string) *GameClient {
 		time.Sleep(time.Second / 10)
 	}
 
-	return &GameClient{udp, &payload.Payload{}, NewEventBus()}
+	return &GameClient{
+		udp,
+		game.NewMap(1, uint16(width), uint16(height)),
+		&payload.Payload{},
+		NewEventBus(),
+	}
 }
 
 type GameClient struct {
 	udp      *UdpClient
+	gameMap  *game.Map
 	Payload  *payload.Payload
 	EventBus *EventBus
 }
@@ -57,6 +63,10 @@ func (gc *GameClient) UpdatePayload() {
 	}
 
 	*gc.Payload = payload.PayloadFromProto(ppl)
+
+	if stalePayload.MapLevel != gc.Payload.MapLevel {
+		*gc.gameMap = *game.NewMap(gc.Payload.MapLevel, gc.gameMap.Width(), gc.gameMap.Height())
+	}
 
 	go func() {
 		if stalePayload.GameState != gc.Payload.GameState {
@@ -126,22 +136,24 @@ func (gc *GameClient) AddListener(e Event, l EventListener) {
 }
 
 func (gc *GameClient) World() []game.FieldPos {
-	fieldPos := make([]game.FieldPos, 0, len(gc.Payload.World))
+	fieldPos := make([]game.FieldPos, 0, gc.gameMap.Width()*gc.gameMap.Height())
 
-	var x, y uint16 = 1, 1
-	for _, char := range []rune(gc.Payload.World) {
-		if char == '|' {
-			x = 1
-			y += 1
-			continue
+	var x, y uint16
+	for y = 1; y <= gc.gameMap.Height(); y++ {
+		for x = 1; x <= gc.gameMap.Width(); x++ {
+			pos := game.Position{Y: uint16(y), X: x}
+			if gc.gameMap.IsWall(pos) {
+				fieldPos = append(fieldPos, game.FieldPos{
+					Field:    game.Wall,
+					Position: pos,
+				})
+			} else {
+				fieldPos = append(fieldPos, game.FieldPos{
+					Field:    game.Empty,
+					Position: pos,
+				})
+			}
 		}
-
-		fieldPos = append(fieldPos, game.FieldPos{
-			Field:    game.Field(char),
-			Position: game.Position{Y: uint16(y), X: x},
-		})
-
-		x += 1
 	}
 
 	return fieldPos
