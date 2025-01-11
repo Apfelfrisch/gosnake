@@ -12,25 +12,28 @@ import (
 
 const GameSpeed = time.Second / 10
 
+type byteBuffer [1][]byte
+type byteBufferChan chan [1][]byte
+
 func New(player int, addr string, game *game.Game) *GameServer {
 	return &GameServer{
-		tcp:  NewTcpSever(":1200", player),
+		udp:  NewUdpSever(":1200", player),
 		game: game,
 	}
 }
 
 type GameServer struct {
-	tcp        *Tcp
+	udp        *UdpServer
 	game       *game.Game
 	lastUpdate time.Time
 }
 
-func (s *GameServer) Addr() *net.TCPAddr {
-	return s.tcp.addr
+func (s *GameServer) Addr() *net.UDPAddr {
+	return s.udp.addr
 }
 
 func (s *GameServer) Ready() bool {
-	return s.tcp.Ready()
+	return s.udp.Ready()
 }
 
 func (s *GameServer) RunBackground() {
@@ -40,8 +43,7 @@ func (s *GameServer) RunBackground() {
 }
 
 func (s *GameServer) Run() {
-	s.tcp.Listen()
-	s.broadcastState()
+	s.udp.Listen()
 
 	for s.Ready() {
 		s.Update()
@@ -49,7 +51,7 @@ func (s *GameServer) Run() {
 
 	// Reslisten for new Connections
 	s.game.Reset()
-	s.tcp = NewTcpSever(s.tcp.addr.String(), len(s.tcp.inputChans))
+	s.udp = NewUdpSever(s.udp.addr.String(), len(s.udp.inputChans))
 
 	s.Run()
 }
@@ -60,8 +62,8 @@ func (s *GameServer) Update() {
 		return
 	}
 
-	for connIndex := range s.tcp.conns.get() {
-		pressedKey := s.tcp.ReadConn(connIndex)
+	for connIndex, conn := range s.udp.conns {
+		pressedKey := s.udp.ReadConn(conn)
 
 		if pressedKey == nil {
 			continue
@@ -101,7 +103,7 @@ func (s *GameServer) Update() {
 func (s *GameServer) broadcastState() {
 	players := s.game.Players()
 
-	for i := range s.tcp.conns.get() {
+	for i, conn := range s.udp.conns {
 		opponents := make([]game.Snake, 0, len(players)-1)
 		opponents = append(opponents, players[:i]...)
 		opponents = append(opponents, players[i+1:]...)
@@ -109,10 +111,7 @@ func (s *GameServer) broadcastState() {
 		var bytes []byte
 		var err error
 
-		world := ""
-		if s.game.State() != game.Ongoing {
-			world = SerializeWorld(i, s.game)
-		}
+		world := SerializeWorld(i, s.game)
 
 		pl := payload.Payload{
 			World:     world,
@@ -127,7 +126,7 @@ func (s *GameServer) broadcastState() {
 			panic(err)
 		}
 
-		s.tcp.WriteConn(i, bytes)
+		s.udp.WriteConn(conn, bytes)
 	}
 }
 

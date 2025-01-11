@@ -11,9 +11,6 @@ import (
 	"github.com/golang/snappy"
 )
 
-type byteBuffer [1][]byte
-type byteBufferChan chan [1][]byte
-
 func NewTcpSever(addr string, connCount int) *Tcp {
 	var inputConnChans []chan rune
 	var outputConnChans []byteBufferChan

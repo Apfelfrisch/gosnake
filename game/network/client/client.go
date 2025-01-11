@@ -1,6 +1,7 @@
 package client
 
 import (
+	"log"
 	"time"
 
 	"github.com/apfelfrisch/gosnake/game"
@@ -9,111 +10,115 @@ import (
 )
 
 func Connect(serverAddr string) *GameClient {
-	tcp := NewTcpClient(serverAddr)
+	udp := NewUdpClient(serverAddr)
 
 	for i := 0; i < 10; i++ {
-		if err := tcp.Connect(); err == nil {
+		if err := udp.Connect(); err == nil {
 			break
 		}
 		time.Sleep(time.Second / 5)
 	}
 
 	for {
-		if len(tcp.Read()) != 0 {
+		if len(udp.Read()) != 0 {
 			break
 		}
 		time.Sleep(time.Second / 10)
 	}
 
-	return &GameClient{tcp, &payload.Payload{}, NewEventBus(), ""}
+	return &GameClient{udp, &payload.Payload{}, NewEventBus()}
 }
 
 type GameClient struct {
-	tcp         *Tcp
-	Payload     *payload.Payload
-	EventBus    *EventBus
-	cachedWorld string
+	udp      *UdpClient
+	Payload  *payload.Payload
+	EventBus *EventBus
 }
 
 func (gc *GameClient) PressKey(char rune) {
-	gc.tcp.Write(char)
+	gc.udp.Write(char)
 }
 
 func (gc *GameClient) UpdatePayload() {
+	data := gc.udp.Read()
+
+	if string(data) == string(HANDSHAKE_RESP) {
+		return
+	}
+
 	stalePayload := *gc.Payload
 
 	ppl := &payload.ProtoPayload{}
-	err := proto.Unmarshal(gc.tcp.Read(), ppl)
+	err := proto.Unmarshal(gc.udp.Read(), ppl)
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		log.Println(gc.udp.Read())
+		return
 	}
+
 	*gc.Payload = payload.PayloadFromProto(ppl)
 
-	if gc.Payload.World != "" {
-		gc.cachedWorld = gc.Payload.World
-	} else {
-		gc.Payload.World = gc.cachedWorld
-	}
+	go func() {
+		if stalePayload.GameState != gc.Payload.GameState {
+			if gc.Payload.GameState == game.Ongoing {
+				gc.EventBus.Dispatch(GameHasStarted{})
+			} else {
+				gc.EventBus.Dispatch(GameHasEnded{})
+			}
+		}
 
-	if stalePayload.GameState != gc.Payload.GameState {
-		if gc.Payload.GameState == game.Ongoing {
-			gc.EventBus.Dispatch(GameHasStarted{})
+		if stalePayload.GameState != game.Ongoing {
+			return
+		}
+
+		if stalePayload.Player.Lives != gc.Payload.Player.Lives {
+			gc.EventBus.Dispatch(PlayerCrashed{})
 		} else {
-			gc.EventBus.Dispatch(GameHasEnded{})
-		}
-	}
-
-	if stalePayload.GameState != game.Ongoing {
-		return
-	}
-
-	if stalePayload.Player.Lives != gc.Payload.Player.Lives {
-		gc.EventBus.Dispatch(PlayerCrashed{})
-	} else {
-		for i, opp := range gc.Payload.Opponents {
-			if opp.Lives != stalePayload.Opponents[i].Lives {
-				gc.EventBus.Dispatch(PlayerCrashed{})
-				break
+			for i, opp := range gc.Payload.Opponents {
+				if opp.Lives != stalePayload.Opponents[i].Lives {
+					gc.EventBus.Dispatch(PlayerCrashed{})
+					break
+				}
 			}
 		}
-	}
 
-	if gc.Payload.GameState != game.Ongoing {
-		return
-	}
+		if gc.Payload.GameState != game.Ongoing {
+			return
+		}
 
-	if stalePayload.Player.Points != gc.Payload.Player.Points {
-		gc.EventBus.Dispatch(PlayerHasEaten{})
-	} else {
-		for i, opp := range gc.Payload.Opponents {
-			if opp.Points != stalePayload.Opponents[i].Points {
-				gc.EventBus.Dispatch(PlayerHasEaten{})
-				break
+		if stalePayload.Player.Points != gc.Payload.Player.Points {
+			gc.EventBus.Dispatch(PlayerHasEaten{})
+		} else {
+			for i, opp := range gc.Payload.Opponents {
+				if opp.Points != stalePayload.Opponents[i].Points {
+					gc.EventBus.Dispatch(PlayerHasEaten{})
+					break
+				}
 			}
 		}
-	}
 
-	if stalePayload.Player.Perks.Get(game.Dash).Usages != gc.Payload.Player.Perks.Get(game.Dash).Usages {
-		gc.EventBus.Dispatch(PlayerDashed{})
-	} else {
-		for i, opp := range gc.Payload.Opponents {
-			if opp.Perks.Get(game.Dash).Usages != stalePayload.Opponents[i].Perks.Get(game.Dash).Usages {
-				gc.EventBus.Dispatch(PlayerDashed{})
-				break
+		if stalePayload.Player.Perks.Get(game.Dash).Usages != gc.Payload.Player.Perks.Get(game.Dash).Usages {
+			gc.EventBus.Dispatch(PlayerDashed{})
+		} else {
+			for i, opp := range gc.Payload.Opponents {
+				if opp.Perks.Get(game.Dash).Usages != stalePayload.Opponents[i].Perks.Get(game.Dash).Usages {
+					gc.EventBus.Dispatch(PlayerDashed{})
+					break
+				}
 			}
 		}
-	}
 
-	if stalePayload.Player.Perks.Get(game.WalkWall).Usages != gc.Payload.Player.Perks.Get(game.WalkWall).Usages {
-		gc.EventBus.Dispatch(PlayerWalkedWall{})
-	} else {
-		for i, opp := range gc.Payload.Opponents {
-			if opp.Perks.Get(game.WalkWall).Usages != stalePayload.Opponents[i].Perks.Get(game.WalkWall).Usages {
-				gc.EventBus.Dispatch(PlayerWalkedWall{})
-				break
+		if stalePayload.Player.Perks.Get(game.WalkWall).Usages != gc.Payload.Player.Perks.Get(game.WalkWall).Usages {
+			gc.EventBus.Dispatch(PlayerWalkedWall{})
+		} else {
+			for i, opp := range gc.Payload.Opponents {
+				if opp.Perks.Get(game.WalkWall).Usages != stalePayload.Opponents[i].Perks.Get(game.WalkWall).Usages {
+					gc.EventBus.Dispatch(PlayerWalkedWall{})
+					break
+				}
 			}
 		}
-	}
+	}()
 }
 
 func (gc *GameClient) AddListener(e Event, l EventListener) {
