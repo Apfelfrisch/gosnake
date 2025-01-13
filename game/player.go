@@ -22,8 +22,8 @@ func NewSnake(x uint16, y uint16, direction Direction) Snake {
 	}
 }
 
-func (snake *Snake) reset(x int, y int, direction Direction) {
-	snake.Occupied = []Position{{X: uint16(x), Y: uint16(y)}}
+func (snake *Snake) reset(x uint16, y uint16, direction Direction) {
+	snake.Occupied = []Position{{X: x, Y: y}}
 	snake.Direction = direction
 	snake.NewDirection = direction
 	snake.Perks = Perks{WalkWall: {Usages: 3}, Dash: {Usages: 3}}
@@ -77,21 +77,7 @@ func (snake *Snake) move() {
 		return
 	}
 
-	head := snake.Head()
-
-	var newHead Position
-	switch snake.Direction {
-	case North:
-		newHead = Position{Y: head.Y - 1, X: head.X}
-	case East:
-		newHead = Position{Y: head.Y, X: head.X + 1}
-	case West:
-		newHead = Position{Y: head.Y, X: head.X - 1}
-	case South:
-		newHead = Position{Y: head.Y + 1, X: head.X}
-	default:
-		panic("Unkow direction")
-	}
+	newHead := snake.Head().Move(snake.Direction)
 
 	if snake.grows == 0 {
 		// Move the Snake

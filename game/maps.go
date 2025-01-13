@@ -1,5 +1,10 @@
 package game
 
+import (
+	"log"
+	"slices"
+)
+
 type Map struct {
 	width  uint16
 	height uint16
@@ -105,6 +110,43 @@ func (self *Map) IsWall(pos Position) bool {
 	_, exists := self.walls[pos.Y][pos.X]
 
 	return exists
+}
+
+func (self *Map) FarestWall(pos Position) Direction {
+	directions := []Direction{North, East, West, South}
+	positions := map[Direction]Position{
+		North: pos,
+		East:  pos,
+		West:  pos,
+		South: pos,
+	}
+
+	var maxLoops uint16
+	if self.Width() < self.Height() {
+		maxLoops = self.Width()
+	} else {
+		maxLoops = self.Height()
+	}
+
+	for i := uint16(0); i < maxLoops; i++ {
+		for j := len(directions) - 1; j >= 0; j-- {
+			dir := directions[j]
+
+			if len(directions) == 1 {
+				return directions[0]
+			}
+
+			positions[dir] = positions[dir].Move(dir)
+
+			if self.IsWall(positions[dir]) {
+				directions = slices.Delete(directions, j, j+1)
+			}
+		}
+	}
+
+	log.Printf("Could not find farest wall. Start position: %v, Map dimensions: %dx%d", pos, self.Width(), self.Height())
+
+	return directions[0]
 }
 
 func outerWalls(gameWidth, gameHeight uint16) map[uint16]map[uint16]bool {

@@ -35,6 +35,21 @@ type Position struct {
 	X uint16
 }
 
+func (p Position) Move(direction Direction) Position {
+	switch direction {
+	case North:
+		return Position{Y: p.Y - 1, X: p.X}
+	case East:
+		return Position{Y: p.Y, X: p.X + 1}
+	case West:
+		return Position{Y: p.Y, X: p.X - 1}
+	case South:
+		return Position{Y: p.Y + 1, X: p.X}
+	default:
+		panic("Unkow direction")
+	}
+}
+
 func (p Position) MarshalJSON() ([]byte, error) {
 	return json.Marshal([2]uint16{p.Y, p.X})
 }

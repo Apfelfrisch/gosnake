@@ -16,18 +16,18 @@ type Game struct {
 }
 
 func NewGame(player, width, height int) *Game {
-	var players []Snake
-
-	for i := 1; i <= player; i++ {
-		players = append(players, NewSnake(uint16(i*5), uint16(i*5), East))
-	}
-
 	game := &Game{
 		level:   1,
 		gameMap: NewMap(1, uint16(width), uint16(height)),
-		players: players,
 	}
 
+	var players []Snake
+	for i := 1; i <= player; i++ {
+		startPos := game.randomPosition()
+		players = append(players, NewSnake(startPos.X, startPos.Y, game.gameMap.FarestWall(startPos)))
+	}
+
+	game.players = players
 	game.candies = []Position{game.randomPosition()}
 
 	return game
@@ -59,24 +59,24 @@ func (game *Game) TooglePaused() {
 
 func (game *Game) Reset() {
 	if game.state == RoundFinished {
-		for i := range game.players {
-			game.players[i].reset((i+1)*5, (i+1)*5, East)
-		}
-
 		game.state = Ongoing
 		game.candies[0] = game.randomPosition()
 		game.gameMap = NewMap(game.level, uint16(game.Width()), uint16(game.Height()))
-	} else {
-		var players []Snake
-		for i := 1; i <= len(game.players); i++ {
-			players = append(players, NewSnake(uint16(i*5), uint16(i*5), East))
-		}
 
+		for i := range game.players {
+			startPos := game.randomPosition()
+			game.players[i].reset(startPos.X, startPos.Y, game.gameMap.FarestWall(startPos))
+		}
+	} else {
 		game.level = 1
 		game.state = Paused
-		game.players = players
 		game.gameMap = NewMap(game.level, uint16(game.Width()), uint16(game.Height()))
 		game.candies[0] = game.randomPosition()
+
+		for i := range game.players {
+			startPos := game.randomPosition()
+			game.players[i] = NewSnake(startPos.X, startPos.Y, game.gameMap.FarestWall(startPos))
+		}
 	}
 }
 

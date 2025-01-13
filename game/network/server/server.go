@@ -10,6 +10,7 @@ import (
 )
 
 const GameSpeed = time.Second / 10
+const PackageIntervall = GameSpeed / 3
 
 type byteBuffer [1][]byte
 type byteBufferChan chan [1][]byte
@@ -22,9 +23,10 @@ func New(player int, addr string, game *game.Game) *GameServer {
 }
 
 type GameServer struct {
-	udp        *UdpServer
-	game       *game.Game
-	lastUpdate time.Time
+	udp             *UdpServer
+	game            *game.Game
+	lastUpdate      time.Time
+	lastPackageSend time.Time
 }
 
 func (s *GameServer) Addr() *net.UDPAddr {
@@ -57,6 +59,12 @@ func (s *GameServer) Run() {
 
 func (s *GameServer) Update() {
 	if time.Since(s.lastUpdate) < GameSpeed {
+		// Resend state to because of package lost
+		if time.Since(s.lastPackageSend) > PackageIntervall {
+			s.broadcastState()
+			s.lastPackageSend = time.Now()
+		}
+
 		time.Sleep(time.Millisecond)
 		return
 	}
@@ -94,9 +102,10 @@ func (s *GameServer) Update() {
 	}
 
 	s.game.Tick()
-	s.lastUpdate = time.Now()
-
 	s.broadcastState()
+
+	s.lastUpdate = time.Now()
+	s.lastPackageSend = time.Now()
 }
 
 func (s *GameServer) broadcastState() {

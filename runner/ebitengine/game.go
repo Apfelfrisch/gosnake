@@ -22,6 +22,7 @@ type clientSnake struct {
 	gridSize    uint16
 	serverSnake game.Snake
 	interPixel  int
+	isGrowing   bool
 }
 
 func (cs *clientSnake) outOfsync(serverSnake game.Snake) bool {
@@ -30,6 +31,11 @@ func (cs *clientSnake) outOfsync(serverSnake game.Snake) bool {
 
 func (cs *clientSnake) sync(serverSnake game.Snake) {
 	cs.interPixel = 0
+	if len(serverSnake.Occupied) != len(cs.serverSnake.Occupied) {
+		cs.isGrowing = true
+	} else {
+		cs.isGrowing = false
+	}
 	cs.serverSnake = serverSnake
 }
 
@@ -74,8 +80,9 @@ func (cs *clientSnake) positions(dir game.Direction, pixel int) []rect {
 			}
 		}
 
-		// resize and replace tail
-		if i == 0 {
+		// resize and replace tail only if snake
+		// is not growing, otherwise it gliches
+		if !cs.isGrowing && i == 0 {
 			var interPos interPosition
 
 			if len(cs.serverSnake.Occupied) > i+1 {
