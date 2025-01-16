@@ -5,6 +5,7 @@ go 1.23.2
 require (
 	github.com/golang/snappy v0.0.4
 	github.com/hajimehoshi/ebiten/v2 v2.8.6
+	github.com/joelschutz/stagehand v1.1.1
 	golang.org/x/image v0.20.0
 	google.golang.org/protobuf v1.36.1
 )

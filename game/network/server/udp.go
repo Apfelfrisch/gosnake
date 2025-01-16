@@ -3,14 +3,15 @@ package server
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
-	"time"
 	"unicode/utf8"
 
 	"github.com/golang/snappy"
 )
 
+const HANDSHAKE_REQ = '?'
 const HANDSHAKE_RESP = '!'
 
 func NewUdpSever(addr string, connCount int) *UdpServer {
@@ -21,7 +22,7 @@ func NewUdpSever(addr string, connCount int) *UdpServer {
 
 	return &UdpServer{
 		addr:        tcpAddr,
-		connCount:   connCount,
+		clientCount: connCount,
 		inputChans:  make(map[string]chan rune),
 		outputChans: make(map[string]byteBufferChan),
 	}
@@ -29,14 +30,15 @@ func NewUdpSever(addr string, connCount int) *UdpServer {
 
 type UdpServer struct {
 	addr        *net.UDPAddr
-	conns       []*net.UDPAddr
-	connCount   int
+	conn        *net.UDPConn
+	clients     []*net.UDPAddr
+	clientCount int
 	inputChans  map[string]chan rune
 	outputChans map[string]byteBufferChan
 }
 
 func (s *UdpServer) Ready() bool {
-	return len(s.conns) == s.connCount
+	return len(s.clients) == s.clientCount
 }
 
 func (s *UdpServer) ReadConn(addr *net.UDPAddr) *rune {
@@ -61,38 +63,55 @@ func (s *UdpServer) WriteConn(addr *net.UDPAddr, content []byte) {
 }
 
 func (s *UdpServer) Listen() {
-	conn, err := net.ListenUDP("udp", s.addr)
+	var err error
+	s.conn, err = net.ListenUDP("udp", s.addr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for len(s.conns) < s.connCount {
-		var buf [64]byte
-		_, clientAddr, err := conn.ReadFromUDP(buf[0:])
+	for len(s.clients) < s.clientCount {
+		clientAddr, err := s.addClient()
 
 		if err != nil {
-			log.Print(err)
+			log.Printf("UDP-SERVER:" + err.Error())
 			continue
 		}
 
-		if _, ok := s.inputChans[clientAddr.String()]; ok {
-			continue
-		}
-
-		s.conns = append(s.conns, clientAddr)
-		s.inputChans[clientAddr.String()] = make(chan rune, 3)
-		s.outputChans[clientAddr.String()] = make(byteBufferChan, 1)
-
-		go s.handleServerWriting(conn, clientAddr, s.outputChans[clientAddr.String()])
+		go s.handleServerWriting(clientAddr, s.outputChans[clientAddr.String()])
 	}
 
-	go s.handleSeverReading(conn)
+	// Start Server Reading after s.addClient
+	// otherwise we get Deadlock
+	go s.handleSeverReading()
 }
 
-func (s *UdpServer) handleSeverReading(conn *net.UDPConn) {
+func (s *UdpServer) addClient() (*net.UDPAddr, error) {
+	buffer := make([]byte, 64)
+	n, clientAddr, err := s.conn.ReadFromUDP(buffer)
+
+	if err != nil {
+		return clientAddr, err
+	}
+
+	if string(buffer[:n]) != string(HANDSHAKE_REQ) {
+		return clientAddr, fmt.Errorf("Invalid Handshake: [%s]", string(buffer[:n]))
+	}
+
+	if _, ok := s.inputChans[clientAddr.String()]; ok {
+		return clientAddr, fmt.Errorf("Client already connected [%s]", clientAddr.String())
+	}
+
+	s.clients = append(s.clients, clientAddr)
+	s.inputChans[clientAddr.String()] = make(chan rune, 3)
+	s.outputChans[clientAddr.String()] = make(byteBufferChan, 1)
+
+	return clientAddr, nil
+}
+
+func (s *UdpServer) handleSeverReading() {
 	buffer := make([]byte, 16)
 	for {
-		n, remoteAddr, err := conn.ReadFromUDP(buffer)
+		n, remoteAddr, err := s.conn.ReadFromUDP(buffer)
 		if err != nil {
 			continue
 		}
@@ -112,6 +131,10 @@ func (s *UdpServer) handleSeverReading(conn *net.UDPConn) {
 			continue
 		}
 
+		if rune == HANDSHAKE_REQ {
+			s.WriteConn(remoteAddr, []byte(string(HANDSHAKE_RESP)))
+		}
+
 		select {
 		case inputChan <- rune:
 		default:
@@ -121,20 +144,18 @@ func (s *UdpServer) handleSeverReading(conn *net.UDPConn) {
 	}
 }
 
-func (s *UdpServer) handleServerWriting(conn *net.UDPConn, clientAddr *net.UDPAddr, outputChan byteBufferChan) {
+func (s *UdpServer) handleServerWriting(clientAddr *net.UDPAddr, outputChan byteBufferChan) {
 	writemessage := func(message []byte) {
 		compressed := snappy.Encode(nil, message)
 
 		var lengthBuffer bytes.Buffer
 		binary.Write(&lengthBuffer, binary.BigEndian, uint32(len(compressed)))
 
-		conn.WriteToUDP(lengthBuffer.Bytes(), clientAddr)
-		conn.WriteToUDP(compressed, clientAddr)
+		s.conn.WriteToUDP(lengthBuffer.Bytes(), clientAddr)
+		s.conn.WriteToUDP(compressed, clientAddr)
 	}
 
 	writemessage([]byte(string(HANDSHAKE_RESP)))
-
-	time.Sleep(time.Second)
 
 	for {
 		message := <-outputChan

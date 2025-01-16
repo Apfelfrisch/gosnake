@@ -16,7 +16,7 @@ func Connect(serverAddr string, width, height int) *GameClient {
 		if err := udp.Connect(); err == nil {
 			break
 		}
-		time.Sleep(time.Second / 5)
+		time.Sleep(time.Second / 10)
 	}
 
 	for {

@@ -6,87 +6,95 @@ import (
 	"github.com/apfelfrisch/gosnake/game"
 )
 
+const (
+	DisplayWidth  = 1500
+	DisplayHeight = 1000
+	GameWidth     = 1000
+	GameHeight    = 1000
+	GridSize      = 20
+)
+
 type interPosition struct {
 	y int
 	x int
 }
 
-type rect struct {
-	x      float32
-	y      float32
-	width  float32
-	height float32
+type Rect struct {
+	X      float32
+	Y      float32
+	Width  float32
+	Height float32
 }
 
 type ClientSnake struct {
-	gridSize    uint16
-	serverSnake game.Snake
-	interPixel  int
-	isGrowing   bool
+	GridSize    uint16
+	ServerSnake game.Snake
+	InterPixel  int
+	IsGrowing   bool
 }
 
-func (cs *ClientSnake) outOfsync(serverSnake game.Snake) bool {
-	return serverSnake.Head().X != cs.serverSnake.Head().X || serverSnake.Head().Y != cs.serverSnake.Head().Y
+func (cs *ClientSnake) OutOfsync(serverSnake game.Snake) bool {
+	return serverSnake.Head().X != cs.ServerSnake.Head().X || serverSnake.Head().Y != cs.ServerSnake.Head().Y
 }
 
-func (cs *ClientSnake) sync(serverSnake game.Snake) {
-	cs.interPixel = 0
-	if len(serverSnake.Occupied) != len(cs.serverSnake.Occupied) {
-		cs.isGrowing = true
+func (cs *ClientSnake) Sync(serverSnake game.Snake) {
+	cs.InterPixel = 0
+	if len(serverSnake.Occupied) != len(cs.ServerSnake.Occupied) {
+		cs.IsGrowing = true
 	} else {
-		cs.isGrowing = false
+		cs.IsGrowing = false
 	}
-	cs.serverSnake = serverSnake
+	cs.ServerSnake = serverSnake
 }
 
 func (cs *ClientSnake) interPos(direction game.Direction) interPosition {
 	switch direction {
 	case game.North:
-		return interPosition{y: -cs.interPixel}
+		return interPosition{y: -cs.InterPixel}
 	case game.South:
-		return interPosition{y: cs.interPixel}
+		return interPosition{y: cs.InterPixel}
 	case game.West:
-		return interPosition{x: -cs.interPixel}
+		return interPosition{x: -cs.InterPixel}
 	case game.East:
-		return interPosition{x: cs.interPixel}
+		return interPosition{x: cs.InterPixel}
 	default:
 		panic("Unkow direction")
 	}
 }
 
-func (cs *ClientSnake) positions(dir game.Direction, pixel int) []rect {
-	cs.interPixel += pixel
+func (cs *ClientSnake) Positions(dir game.Direction, pixel int) []Rect {
+	cs.InterPixel += pixel
 
-	bodies := make([]rect, 0, len(cs.serverSnake.Occupied))
+	bodies := make([]Rect, 0, len(cs.ServerSnake.Occupied))
 
-	for i, pos := range cs.serverSnake.Occupied {
-		body := rect{
-			x:      float32(pos.X*cs.gridSize - cs.gridSize),
-			y:      float32(pos.Y*cs.gridSize - cs.gridSize),
-			width:  float32(cs.gridSize),
-			height: float32(cs.gridSize),
+	for i, pos := range cs.ServerSnake.Occupied {
+		body := Rect{
+			X:      float32(pos.X*cs.GridSize - cs.GridSize),
+			Y:      float32(pos.Y*cs.GridSize - cs.GridSize),
+			Width:  float32(cs.GridSize),
+			Height: float32(cs.GridSize),
 		}
 
 		// resize and replace head
-		if i == len(cs.serverSnake.Occupied)-1 {
+		if i == len(cs.ServerSnake.Occupied)-1 {
 			interPos := cs.interPos(dir)
-			body.width += float32(math.Abs(float64(interPos.x)))
-			body.height += float32(math.Abs(float64(interPos.y)))
+			body.Width += float32(math.Abs(float64(interPos.x)))
+			body.Height += float32(math.Abs(float64(interPos.y)))
 			if interPos.x < 0 {
-				body.x += float32(interPos.x)
+				body.X += float32(interPos.x)
 			}
 			if interPos.y < 0 {
-				body.y += float32(interPos.y)
+				body.Y += float32(interPos.y)
 			}
 		}
 
 		// resize and replace tail only if snake
 		// is not growing, otherwise it gliches
-		if !cs.isGrowing && i == 0 {
+		if !cs.IsGrowing && i == 0 {
 			var interPos interPosition
 
-			if len(cs.serverSnake.Occupied) > i+1 {
-				prevPos := cs.serverSnake.Occupied[i+1]
+			if len(cs.ServerSnake.Occupied) > i+1 {
+				prevPos := cs.ServerSnake.Occupied[i+1]
 
 				if prevPos.X < pos.X {
 					interPos = cs.interPos(game.West)
@@ -101,13 +109,13 @@ func (cs *ClientSnake) positions(dir game.Direction, pixel int) []rect {
 				interPos = cs.interPos(dir)
 			}
 
-			body.width -= float32(math.Abs(float64(interPos.x)))
-			body.height -= float32(math.Abs(float64(interPos.y)))
+			body.Width -= float32(math.Abs(float64(interPos.x)))
+			body.Height -= float32(math.Abs(float64(interPos.y)))
 			if interPos.x > 0 {
-				body.x += float32(interPos.x)
+				body.X += float32(interPos.x)
 			}
 			if interPos.y > 0 {
-				body.y += float32(interPos.y)
+				body.Y += float32(interPos.y)
 			}
 		}
 

@@ -33,6 +33,10 @@ func (s *GameServer) Addr() *net.UDPAddr {
 	return s.udp.addr
 }
 
+func (s *GameServer) Clients() []*net.UDPAddr {
+	return s.udp.clients
+}
+
 func (s *GameServer) Ready() bool {
 	return s.udp.Ready()
 }
@@ -69,7 +73,7 @@ func (s *GameServer) Update() {
 		return
 	}
 
-	for connIndex, conn := range s.udp.conns {
+	for connIndex, conn := range s.udp.clients {
 		pressedKey := s.udp.ReadConn(conn)
 
 		if pressedKey == nil {
@@ -110,7 +114,7 @@ func (s *GameServer) Update() {
 
 func (s *GameServer) broadcastState() {
 	players := s.game.Players()
-	for i, conn := range s.udp.conns {
+	for i, conn := range s.udp.clients {
 		opponents := make([]game.Snake, 0, len(players)-1)
 		opponents = append(opponents, players[:i]...)
 		opponents = append(opponents, players[i+1:]...)

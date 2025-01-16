@@ -27,11 +27,12 @@ func NewUdpClient(addr string) *UdpClient {
 }
 
 type UdpClient struct {
-	server     *net.UDPAddr
-	conn       *net.UDPConn
-	input      []byte
-	inputChan  byteBufferChan
-	outputChan chan rune
+	server        *net.UDPAddr
+	conn          *net.UDPConn
+	input         []byte
+	lastHandshake time.Time
+	inputChan     byteBufferChan
+	outputChan    chan rune
 }
 
 func (c *UdpClient) Connect() error {
@@ -42,17 +43,18 @@ func (c *UdpClient) Connect() error {
 		return err
 	}
 
-	go handleUdpReading(c.conn, c.inputChan)
-	go handleUdpWriting(c.conn, c.outputChan)
+	go c.handleUdpReading()
+	go c.handleUdpWriting()
 
+	beforeHandshare := time.Now()
 	for {
 		c.Write(HANDSHAKE_REQ)
 
-		if string(c.Read()) != "" {
+		time.Sleep(time.Second / 5)
+
+		if c.lastHandshake.After(beforeHandshare) {
 			break
 		}
-
-		time.Sleep(time.Second)
 	}
 
 	return nil
@@ -81,19 +83,21 @@ func (c *UdpClient) Write(char rune) {
 	}
 }
 
-func handleUdpReading(conn net.Conn, inputChan byteBufferChan) {
+func (c *UdpClient) handleUdpReading() {
 	for {
-		// Read Payload length
 		var lengthBuffer [4]byte
-		_, err := io.ReadFull(conn, lengthBuffer[:])
+		n, err := io.ReadFull(c.conn, lengthBuffer[:])
+		if len(lengthBuffer[:n]) == 0 {
+			continue
+		}
 		if err != nil {
-			conn.Close()
-			return
+			log.Println("UDP-CLIENT: Could not read response: ", string(lengthBuffer[:]))
+			continue
 		}
 
 		// Read Payload
 		compressed := make([]byte, binary.BigEndian.Uint32(lengthBuffer[:]))
-		_, err = io.ReadFull(conn, compressed)
+		_, err = io.ReadFull(c.conn, compressed)
 		if err != nil {
 			log.Println(err)
 			return
@@ -106,22 +110,26 @@ func handleUdpReading(conn net.Conn, inputChan byteBufferChan) {
 			return
 		}
 
+		if len(decompressed) == 1 && string(decompressed) == string(HANDSHAKE_RESP) {
+			c.lastHandshake = time.Now()
+			continue
+		}
+
 		select {
 		// Try to write to the channel
-		case inputChan <- byteBuffer{decompressed}:
+		case c.inputChan <- byteBuffer{decompressed}:
 		// Otherwise clear channel
 		default:
-			<-inputChan
-			inputChan <- byteBuffer{decompressed}
+			<-c.inputChan
+			c.inputChan <- byteBuffer{decompressed}
 		}
 	}
 }
 
-func handleUdpWriting(conn net.Conn, outputChan chan rune) {
+func (c *UdpClient) handleUdpWriting() {
 	for {
-		message := <-outputChan
+		message := <-c.outputChan
 
-		// Write back the same message to the client.
-		conn.Write([]byte(string(message)))
+		c.conn.Write([]byte(string(message)))
 	}
 }
