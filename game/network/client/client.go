@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -9,21 +10,27 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func Connect(serverAddr string, width, height int) *GameClient {
+func Connect(ctx context.Context, serverAddr string, width, height int) (*GameClient, error) {
 	udp := NewUdpClient(serverAddr)
 
 	for i := 0; i < 10; i++ {
-		if err := udp.Connect(); err == nil {
+		if err := udp.Connect(ctx); err == nil {
 			break
 		}
 		time.Sleep(time.Second / 10)
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			time.Sleep(time.Second / 10)
+		}
+
 		if len(udp.Read()) != 0 {
 			break
 		}
-		time.Sleep(time.Second / 10)
 	}
 
 	return &GameClient{
@@ -31,7 +38,7 @@ func Connect(serverAddr string, width, height int) *GameClient {
 		game.NewMap(1, uint16(width), uint16(height)),
 		&payload.Payload{},
 		NewEventBus(),
-	}
+	}, nil
 }
 
 type GameClient struct {

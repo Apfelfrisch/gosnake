@@ -1,9 +1,12 @@
 package engine
 
 import (
+	"context"
 	"math"
 
 	"github.com/apfelfrisch/gosnake/game"
+	netClient "github.com/apfelfrisch/gosnake/game/network/client"
+	netServer "github.com/apfelfrisch/gosnake/game/network/server"
 )
 
 const (
@@ -123,4 +126,43 @@ func (cs *ClientSnake) Positions(dir game.Direction, pixel int) []Rect {
 	}
 
 	return bodies
+}
+
+func ConnectClient(ctx context.Context, serverAddr string) (*netClient.GameClient, error) {
+	client, err := netClient.Connect(ctx, serverAddr, GameWidth/GridSize, GameHeight/GridSize)
+
+	if err != nil {
+		return nil, err
+	}
+
+	player := NewPlayer()
+
+	client.EventBus.Add(netClient.PlayerHasEaten{}, func(event netClient.Event) {
+		player.Play(Eat)
+	})
+	client.EventBus.Add(netClient.PlayerDashed{}, func(event netClient.Event) {
+		player.Play(Dash)
+	})
+	client.EventBus.Add(netClient.PlayerWalkedWall{}, func(event netClient.Event) {
+		player.Play(WalkWall)
+	})
+	client.EventBus.Add(netClient.PlayerCrashed{}, func(event netClient.Event) {
+		player.Play(Crash)
+	})
+	client.EventBus.Add(netClient.GameHasStarted{}, func(event netClient.Event) {
+		player.PlayMusic()
+	})
+	client.EventBus.Add(netClient.GameHasEnded{}, func(event netClient.Event) {
+		player.PauseMusic()
+	})
+
+	return client, nil
+}
+
+func BuildServer(playerCount int, addr string) *netServer.GameServer {
+	return netServer.New(
+		playerCount,
+		addr,
+		game.NewGame(playerCount, GameWidth/GridSize, GameHeight/GridSize),
+	)
 }

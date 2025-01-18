@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -37,28 +38,33 @@ func (s *GameServer) Clients() []*net.UDPAddr {
 	return s.udp.clients
 }
 
-func (s *GameServer) Ready() bool {
-	return s.udp.Ready()
+func (s *GameServer) IsListining() bool {
+	return s.udp.IsListining()
 }
 
-func (s *GameServer) RunBackground() {
+func (s *GameServer) Ready() bool {
+	return s.udp.IsReady()
+}
+
+func (s *GameServer) RunBackground(ctx context.Context) {
 	go func() {
-		s.Run()
+		s.Run(ctx)
 	}()
 }
 
-func (s *GameServer) Run() {
-	s.udp.Listen()
+func (s *GameServer) Run(ctx context.Context) {
+	s.udp.Listen(ctx)
 
 	for s.Ready() {
-		s.Update()
+		select {
+		case <-ctx.Done():
+			s.game.Reset()
+			s.udp.Disconnect()
+			return
+		default:
+			s.Update()
+		}
 	}
-
-	// Reslisten for new Connections
-	s.game.Reset()
-	s.udp = NewUdpSever(s.udp.addr.String(), len(s.udp.inputChans))
-
-	s.Run()
 }
 
 func (s *GameServer) Update() {

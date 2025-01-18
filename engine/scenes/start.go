@@ -2,17 +2,17 @@ package scenes
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"image"
 	"image/color"
 	"log"
 	"strconv"
 	"time"
 
-	netClient "github.com/apfelfrisch/gosnake/game/network/client"
-	netServer "github.com/apfelfrisch/gosnake/game/network/server"
-
 	"github.com/apfelfrisch/gosnake/engine"
 	"github.com/apfelfrisch/gosnake/game"
+	netServer "github.com/apfelfrisch/gosnake/game/network/server"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -27,23 +27,29 @@ const (
 	server       gametype = 2
 )
 
-type connection int
+func (gt gametype) prev() gametype {
+	index := int(gt) - 1
+	if index < 0 {
+		index = 2
+	}
+	return gametype(index)
+}
+
+func (gt gametype) next() gametype {
+	index := int(gt) + 1
+	if index > 2 {
+		index = 0
+	}
+	return gametype(index)
+}
+
+type connState int
 
 const (
-	closed     connection = 0
-	connecting connection = 1
-	connected  connection = 2
+	connClosed   connState = 0
+	connPending  connState = 1
+	connFinished connState = 2
 )
-
-type MenuStart struct {
-	BaseScene
-	gametype    gametype
-	connection  connection
-	playerCount int
-	serverAddr  string
-	blink       blink
-	server      *netServer.GameServer
-}
 
 type blink struct {
 	visible   bool
@@ -64,6 +70,35 @@ func (c *blink) Show(text string) string {
 	return ""
 }
 
+type MenuStart struct {
+	BaseScene
+	gametype    gametype
+	connection  connState
+	playerCount int
+	blink       blink
+	serverAddr  string
+	server      *netServer.GameServer
+	ctx         context.Context
+	cancle      context.CancelFunc
+}
+
+func New() *MenuStart {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	return &MenuStart{
+		ctx:    ctx,
+		cancle: cancel,
+		BaseScene: BaseScene{
+			bounds: image.Rectangle{},
+			localPlayer: engine.ClientSnake{
+				GridSize:   engine.GridSize,
+				InterPixel: 0,
+			},
+			localOpponents: []engine.ClientSnake{},
+		},
+	}
+}
+
 func (s *MenuStart) Update() error {
 	s.blink.blink()
 
@@ -74,47 +109,23 @@ func (s *MenuStart) Update() error {
 		if s.client.Payload.GameState == game.Ongoing {
 			s.sm.SwitchTo(&GameRunning{BaseScene: s.BaseScene})
 		}
-	} else if s.connection == connecting {
+
+		return nil
+	}
+
+	if s.connection == connPending {
+		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+			s.cancle()
+		}
 		return nil
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		switch s.gametype {
-		case client:
-			s.connection = connecting
-			go func() {
-				s.client = buildClient(s.serverAddr + ":1200")
-				s.client.PressKey('↵')
-			}()
-		case server:
-			s.connection = connecting
-			s.server = buildServer(s.playerCount, ":1200")
-			s.server.RunBackground()
-			go func() {
-				s.client = buildClient(":1200")
-				s.client.PressKey('↵')
-			}()
-		case singleplayer:
-			s.server = buildServer(1, ":1200")
-			s.server.RunBackground()
-			s.client = buildClient(":1200")
-			s.client.PressKey('↵')
-		default:
-			panic(fmt.Sprintf("unexpected scenes.gametype: %#v", s.gametype))
-		}
-
+		s.connect()
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
-		index := int(s.gametype) - 1
-		if index < 0 {
-			index = 2
-		}
-		s.gametype = gametype(index)
+		s.gametype = s.gametype.prev()
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) {
-		index := int(s.gametype) + 1
-		if index > 2 {
-			index = 0
-		}
-		s.gametype = gametype(index)
+		s.gametype = s.gametype.next()
 	}
 
 	if s.gametype == client {
@@ -179,7 +190,7 @@ func (s *MenuStart) drawLeftMenu(screen *ebiten.Image, face *text.GoTextFace, op
 		op.GeoM.Translate(-40, -50)
 		text.Draw(screen, "->", face, op)
 		op.GeoM.Translate(350, -50)
-		if s.connection == connecting {
+		if s.connection == connPending {
 			text.Draw(screen, "Server Adresse: "+s.serverAddr, face, op)
 		} else {
 			text.Draw(screen, "Server Adresse: "+s.serverAddr+s.blink.Show("|"), face, op)
@@ -188,7 +199,7 @@ func (s *MenuStart) drawLeftMenu(screen *ebiten.Image, face *text.GoTextFace, op
 		op.GeoM.Translate(-40, 0)
 		text.Draw(screen, "->", face, op)
 		op.GeoM.Translate(350, -100)
-		if s.connection == connecting {
+		if s.connection == connPending {
 			text.Draw(screen, "Anzahl Spieler: "+strconv.Itoa(s.playerCount), face, op)
 		} else {
 			text.Draw(screen, "Anzahl Spieler: "+s.blink.Show(strconv.Itoa(s.playerCount)), face, op)
@@ -206,16 +217,16 @@ func (s *MenuStart) drawContextMenu(screen *ebiten.Image, face *text.GoTextFace,
 	if s.gametype == client {
 		op.GeoM.Reset()
 		op.GeoM.Translate(360, 150)
-		if s.connection == connecting {
+		if s.connection == connPending {
 			text.Draw(screen, "Verbinde"+s.blink.Show("..."), face, op)
-		} else if s.connection == connected {
+		} else if s.connection == connFinished {
 			text.Draw(screen, "Verbunden", face, op)
 		}
 
 		return
 	}
 
-	if s.server == nil {
+	if s.server == nil || !s.server.IsListining() {
 		return
 	}
 
@@ -234,36 +245,32 @@ func (s *MenuStart) drawContextMenu(screen *ebiten.Image, face *text.GoTextFace,
 	}
 }
 
-func buildServer(playerCount int, addr string) *netServer.GameServer {
-	return netServer.New(
-		playerCount,
-		addr,
-		game.NewGame(playerCount, engine.GameWidth/engine.GridSize, engine.GameHeight/engine.GridSize),
-	)
-}
+func (s *MenuStart) connect() {
+	connClient := func() {
+		var err error
+		s.client, err = engine.ConnectClient(s.ctx, s.serverAddr+":1200")
+		if err != nil {
+			s.connection = connClosed
+			s.ctx, s.cancle = context.WithCancel(context.Background())
+			return
+		}
+		s.client.PressKey('↵')
+	}
 
-func buildClient(serverAddr string) *netClient.GameClient {
-	client := netClient.Connect(serverAddr, engine.GameWidth/engine.GridSize, engine.GameHeight/engine.GridSize)
-	player := engine.NewPlayer()
-
-	client.EventBus.Add(netClient.PlayerHasEaten{}, func(event netClient.Event) {
-		player.Play(engine.Eat)
-	})
-	client.EventBus.Add(netClient.PlayerDashed{}, func(event netClient.Event) {
-		player.Play(engine.Dash)
-	})
-	client.EventBus.Add(netClient.PlayerWalkedWall{}, func(event netClient.Event) {
-		player.Play(engine.WalkWall)
-	})
-	client.EventBus.Add(netClient.PlayerCrashed{}, func(event netClient.Event) {
-		player.Play(engine.Crash)
-	})
-	client.EventBus.Add(netClient.GameHasStarted{}, func(event netClient.Event) {
-		player.PlayMusic()
-	})
-	client.EventBus.Add(netClient.GameHasEnded{}, func(event netClient.Event) {
-		player.PauseMusic()
-	})
-
-	return client
+	switch s.gametype {
+	case client:
+		s.connection = connPending
+		go connClient()
+	case server:
+		s.connection = connPending
+		s.server = engine.BuildServer(s.playerCount, ":1200")
+		s.server.RunBackground(s.ctx)
+		go connClient()
+	case singleplayer:
+		s.server = engine.BuildServer(1, ":1200")
+		s.server.RunBackground(s.ctx)
+		connClient()
+	default:
+		panic(fmt.Sprintf("unexpected scenes.gametype: %#v", s.gametype))
+	}
 }

@@ -39,21 +39,6 @@ func (s *BaseScene) Unload() game.GameState {
 	return s.client.Payload.GameState
 }
 
-func New() *MenuStart {
-	localPlayer := engine.ClientSnake{
-		GridSize:   engine.GridSize,
-		InterPixel: 0,
-	}
-
-	return &MenuStart{
-		BaseScene: BaseScene{
-			bounds:         image.Rectangle{},
-			localPlayer:    localPlayer,
-			localOpponents: []engine.ClientSnake{},
-		},
-	}
-}
-
 const playerInfoXOffset = engine.GameWidth + 10
 
 func drawPlayerInfo(screen *ebiten.Image, payload *payload.Payload) {
