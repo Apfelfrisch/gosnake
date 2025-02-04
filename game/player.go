@@ -14,7 +14,7 @@ func NewSnake(x uint16, y uint16, direction Direction) Snake {
 	return Snake{
 		Lives:        10,
 		Points:       0,
-		Perks:        Perks{WalkWall: {Usages: 3}, Dash: {Usages: 3}},
+		Perks:        Perks{PerkTypeWalkWall: {Usages: 1}, PerkTypeDash: {Usages: 1}},
 		Direction:    direction,
 		NewDirection: direction,
 		Occupied:     []Position{{X: x, Y: y}},
@@ -22,11 +22,14 @@ func NewSnake(x uint16, y uint16, direction Direction) Snake {
 	}
 }
 
+func (snake *Snake) addPerk(pt PerkType, usages uint16) {
+	snake.Perks.add(pt, usages)
+}
+
 func (snake *Snake) reset(x uint16, y uint16, direction Direction) {
 	snake.Occupied = []Position{{X: x, Y: y}}
 	snake.Direction = direction
 	snake.NewDirection = direction
-	snake.Perks = Perks{WalkWall: {Usages: 3}, Dash: {Usages: 3}}
 	snake.grows = 0
 }
 
@@ -93,7 +96,7 @@ func (snake *Snake) move() {
 func (snake *Snake) walkWalls(game *Game) {
 	position := snake.Head()
 
-	if ok := snake.Perks.use(WalkWall); !ok {
+	if ok := snake.Perks.use(PerkTypeWalkWall); !ok {
 		return
 	}
 
@@ -108,7 +111,7 @@ func (snake *Snake) walkWalls(game *Game) {
 		position.Y = game.Height() - 1
 	} else {
 		// Perk was not needed
-		snake.Perks.reload(WalkWall, 1)
+		snake.Perks.reload(PerkTypeWalkWall, 1)
 		return
 	}
 

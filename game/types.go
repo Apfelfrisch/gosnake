@@ -14,11 +14,11 @@ const (
 type Field rune
 
 const (
-	Empty         Field = ' '
-	Wall                = 'X'
-	Candy               = '☀'
-	SnakePlayer         = '0'
-	SnakeOpponent       = '1'
+	FieldEmpty         Field = ' '
+	FieldWall                = 'X'
+	FieldCandy               = '☀'
+	FieldSnakePlayer         = '0'
+	FieldSnakeOpponent       = '1'
 )
 
 type GameState int

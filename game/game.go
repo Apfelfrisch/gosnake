@@ -12,7 +12,7 @@ type Game struct {
 	gameMap *Map
 	state   GameState
 	players []Snake
-	candies []Position
+	candies []Candy
 }
 
 func NewGame(player, width, height int) *Game {
@@ -28,7 +28,9 @@ func NewGame(player, width, height int) *Game {
 	}
 
 	game.players = players
-	game.candies = []Position{game.randomPosition()}
+	game.candies = []Candy{
+		NewCandyGrow(game.randomPosition()),
+	}
 
 	return game
 }
@@ -60,7 +62,7 @@ func (game *Game) TooglePaused() {
 func (game *Game) Reset() {
 	if game.state == RoundFinished {
 		game.state = Ongoing
-		game.candies[0] = game.randomPosition()
+		game.candies = []Candy{NewCandyGrow(game.randomPosition())}
 		game.gameMap = NewMap(game.level, uint16(game.Width()), uint16(game.Height()))
 
 		for i := range game.players {
@@ -71,7 +73,7 @@ func (game *Game) Reset() {
 		game.level = 1
 		game.state = Paused
 		game.gameMap = NewMap(game.level, uint16(game.Width()), uint16(game.Height()))
-		game.candies[0] = game.randomPosition()
+		game.candies = []Candy{NewCandyGrow(game.randomPosition())}
 
 		for i := range game.players {
 			startPos := game.randomPosition()
@@ -82,18 +84,18 @@ func (game *Game) Reset() {
 
 func (game *Game) Field(playerIndex int, position Position) Field {
 	if game.gameMap.IsWall(position) {
-		return Wall
+		return FieldWall
 	}
 
 	for _, candyPos := range game.candies {
 		if position.Y == candyPos.Y && position.X == candyPos.X {
-			return Candy
+			return FieldCandy
 		}
 	}
 
 	for _, snakePos := range game.players[playerIndex].Occupied {
 		if position.Y == snakePos.Y && position.X == snakePos.X {
-			return SnakePlayer
+			return FieldSnakePlayer
 		}
 	}
 
@@ -104,12 +106,12 @@ func (game *Game) Field(playerIndex int, position Position) Field {
 
 		for _, snakePos := range player.Occupied {
 			if position.Y == snakePos.Y && position.X == snakePos.X {
-				return SnakeOpponent
+				return FieldSnakeOpponent
 			}
 		}
 	}
 
-	return Empty
+	return FieldEmpty
 }
 
 func (game *Game) Tick() {
@@ -122,6 +124,22 @@ func (game *Game) Tick() {
 
 		player.move()
 		player.walkWalls(game)
+	}
+
+	// Spawn WalkWall
+	if rand.IntN(250) == 0 {
+		game.candies = append(game.candies, Candy{
+			CandyTpe: CandyWalkWall,
+			Position: game.randomPosition(),
+		})
+	}
+
+	// Spawn Dash
+	if rand.IntN(250) == 0 {
+		game.candies = append(game.candies, Candy{
+			CandyTpe: CandyDash,
+			Position: game.randomPosition(),
+		})
 	}
 
 	candyCount := 0
@@ -173,10 +191,23 @@ func (game *Game) handelCollision(playerIndex int) {
 		}
 	}
 
-	// Snake gets Candy
-	if candyIndex := player.Head().getCollision(game.candies); candyIndex != nil {
-		player.eat(growsSize)
-		game.candies[*candyIndex] = game.randomPosition()
+	for i := len(game.candies) - 1; i >= 0; i-- {
+		candy := game.candies[i]
+		if candyIndex := player.Head().getCollision([]Position{candy.Position}); candyIndex != nil {
+			switch candy.CandyTpe {
+			case CandyGrow:
+				player.eat(growsSize)
+				game.candies[i] = NewCandyGrow(game.randomPosition())
+			case CandyDash:
+				player.Perks.add(PerkTypeDash, 1)
+				game.candies = append(game.candies[:i], game.candies[i+1:]...)
+				continue
+			case CandyWalkWall:
+				player.Perks.add(PerkTypeWalkWall, 1)
+				game.candies = append(game.candies[:i], game.candies[i+1:]...)
+				continue
+			}
+		}
 	}
 }
 
@@ -192,7 +223,7 @@ func (game *Game) Dash(playerIndex int) {
 	}
 
 	if playerIndex >= 0 && playerIndex < len(game.players) {
-		if ok := game.players[playerIndex].Perks.use(Dash); !ok {
+		if ok := game.players[playerIndex].Perks.use(PerkTypeDash); !ok {
 			return
 		}
 
@@ -208,7 +239,7 @@ func (game *Game) Players() []Snake {
 	return game.players
 }
 
-func (game *Game) Candies() []Position {
+func (game *Game) Candies() []Candy {
 	return game.candies
 }
 

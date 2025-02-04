@@ -1,6 +1,7 @@
 package scenes
 
 import (
+	"fmt"
 	"image/color"
 	"os"
 
@@ -73,9 +74,9 @@ func drawGameField(screen *ebiten.Image, world []game.FieldPos) {
 
 	for _, fieldPos := range world {
 		switch fieldPos.Field {
-		case game.Wall:
+		case game.FieldWall:
 			drawRect(fieldPos, color.Gray{150})
-		case game.Empty:
+		case game.FieldEmpty:
 			if (fieldPos.X+fieldPos.Y)%2 == 0 {
 				drawRect(fieldPos, color.RGBA{13, 13, 13, 0})
 			} else {
@@ -144,7 +145,7 @@ func drawSnakes(screen *ebiten.Image, base *BaseScene) {
 	}
 }
 
-func drawCandies(screen *ebiten.Image, candies []game.Position) {
+func drawCandies(screen *ebiten.Image, candies []game.Candy) {
 	drawCircle := func(pos game.Position, c color.Color) {
 		vector.DrawFilledCircle(
 			screen,
@@ -156,7 +157,16 @@ func drawCandies(screen *ebiten.Image, candies []game.Position) {
 		)
 	}
 
-	for _, pos := range candies {
-		drawCircle(pos, color.RGBA{255, 215, 0, 255})
+	for _, candy := range candies {
+		switch candy.CandyTpe {
+		case game.CandyGrow:
+			drawCircle(candy.Position, color.RGBA{248, 248, 255, 255})
+		case game.CandyWalkWall:
+			drawCircle(candy.Position, color.RGBA{202, 255, 112, 255})
+		case game.CandyDash:
+			drawCircle(candy.Position, color.RGBA{85, 26, 139, 255})
+		default:
+			panic(fmt.Sprintf("unexpected game.CandyTpe: %#v", candy.CandyTpe))
+		}
 	}
 }

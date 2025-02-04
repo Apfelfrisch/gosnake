@@ -114,22 +114,32 @@ func (gc *GameClient) UpdatePayload() {
 			}
 		}
 
-		if stalePayload.Player.Perks.Get(game.Dash).Usages != gc.Payload.Player.Perks.Get(game.Dash).Usages {
+		if stalePayload.Player.Perks.Get(game.PerkTypeDash).Usages < gc.Payload.Player.Perks.Get(game.PerkTypeDash).Usages {
+			gc.EventBus.Dispatch(PlayerHasEaten{})
+		} else if stalePayload.Player.Perks.Get(game.PerkTypeDash).Usages > gc.Payload.Player.Perks.Get(game.PerkTypeDash).Usages {
 			gc.EventBus.Dispatch(PlayerDashed{})
 		} else {
 			for i, opp := range gc.Payload.Opponents {
-				if opp.Perks.Get(game.Dash).Usages != stalePayload.Opponents[i].Perks.Get(game.Dash).Usages {
+				if opp.Perks.Get(game.PerkTypeDash).Usages < stalePayload.Opponents[i].Perks.Get(game.PerkTypeDash).Usages {
+					gc.EventBus.Dispatch(PlayerHasEaten{})
+					break
+				} else if opp.Perks.Get(game.PerkTypeDash).Usages > stalePayload.Opponents[i].Perks.Get(game.PerkTypeDash).Usages {
 					gc.EventBus.Dispatch(PlayerDashed{})
 					break
 				}
 			}
 		}
 
-		if stalePayload.Player.Perks.Get(game.WalkWall).Usages != gc.Payload.Player.Perks.Get(game.WalkWall).Usages {
+		if stalePayload.Player.Perks.Get(game.PerkTypeWalkWall).Usages < gc.Payload.Player.Perks.Get(game.PerkTypeWalkWall).Usages {
+			gc.EventBus.Dispatch(PlayerHasEaten{})
+		} else if stalePayload.Player.Perks.Get(game.PerkTypeWalkWall).Usages > gc.Payload.Player.Perks.Get(game.PerkTypeWalkWall).Usages {
 			gc.EventBus.Dispatch(PlayerWalkedWall{})
 		} else {
 			for i, opp := range gc.Payload.Opponents {
-				if opp.Perks.Get(game.WalkWall).Usages != stalePayload.Opponents[i].Perks.Get(game.WalkWall).Usages {
+				if opp.Perks.Get(game.PerkTypeWalkWall).Usages < stalePayload.Opponents[i].Perks.Get(game.PerkTypeWalkWall).Usages {
+					gc.EventBus.Dispatch(PlayerHasEaten{})
+					break
+				} else if opp.Perks.Get(game.PerkTypeWalkWall).Usages > stalePayload.Opponents[i].Perks.Get(game.PerkTypeWalkWall).Usages {
 					gc.EventBus.Dispatch(PlayerWalkedWall{})
 					break
 				}
@@ -151,12 +161,12 @@ func (gc *GameClient) World() []game.FieldPos {
 			pos := game.Position{Y: uint16(y), X: x}
 			if gc.gameMap.IsWall(pos) {
 				fieldPos = append(fieldPos, game.FieldPos{
-					Field:    game.Wall,
+					Field:    game.FieldWall,
 					Position: pos,
 				})
 			} else {
 				fieldPos = append(fieldPos, game.FieldPos{
-					Field:    game.Empty,
+					Field:    game.FieldEmpty,
 					Position: pos,
 				})
 			}

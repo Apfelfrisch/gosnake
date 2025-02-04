@@ -23,10 +23,21 @@ enum ProtoDirection {
   PROTO_DIRECTION_WEST = 3;
 }
 
+enum ProtoCandyType {
+  PROTO_CANDY_TYPE_GROW = 0;
+  PROTO_CANDY_TYPE_WALK_WALL = 1;
+  PROTO_CANDY_TYPE_DASH = 2;
+}
+
 // Messages
 message ProtoPosition {
   uint32 y = 1;
   uint32 x = 2;
+}
+
+message ProtoCandy {
+  ProtoCandyType type = 1;
+  ProtoPosition position = 2;
 }
 
 message ProtoPerk {
@@ -46,7 +57,7 @@ message ProtoSnake {
 message ProtoPayload {
   uint32 map_level = 1;
   ProtoGameState game_state = 2;
-  repeated ProtoPosition candies = 3;
+  repeated ProtoCandy candies = 3;
   ProtoSnake player = 4;
   repeated ProtoSnake opponents = 5;
 }

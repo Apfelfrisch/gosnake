@@ -9,5 +9,7 @@ build-mac-arm:
 	@env GOOS=darwin GOARCH=arm64 go build -o ./build/snake-arm ./cmd/
 run: build-native
 	./build/snake
+proto:
+	@protoc ./game/network/payload/payload.proto --go_out=.
 test:
 	@go test ./...

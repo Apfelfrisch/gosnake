@@ -7,7 +7,10 @@ func (p *Perks) add(pt PerkType, usages uint16) {
 		*p = make(Perks)
 	}
 
-	(*p)[pt] = Perk{usages}
+	perk := p.Get(pt)
+	perk.Usages += usages
+
+	(*p)[pt] = perk
 }
 
 func (ps *Perks) Get(pt PerkType) Perk {
@@ -58,9 +61,9 @@ type PerkType int
 
 func (pt PerkType) String() string {
 	switch pt {
-	case WalkWall:
+	case PerkTypeWalkWall:
 		return "Walk Wall"
-	case Dash:
+	case PerkTypeDash:
 		return "Stash"
 	}
 
@@ -68,8 +71,8 @@ func (pt PerkType) String() string {
 }
 
 const (
-	WalkWall PerkType = 1
-	Dash     PerkType = 2
+	PerkTypeWalkWall PerkType = 1
+	PerkTypeDash     PerkType = 2
 )
 
 type Perk struct {

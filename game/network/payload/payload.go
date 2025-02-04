@@ -3,17 +3,17 @@ package payload
 import "github.com/apfelfrisch/gosnake/game"
 
 type Payload struct {
-	MapLevel  uint16          `json:"w"`
-	GameState game.GameState  `json:"gs"`
-	Candies   []game.Position `json:"ca"`
-	Player    game.Snake      `json:"pl"`
-	Opponents []game.Snake    `json:"op"`
+	MapLevel  uint16         `json:"w"`
+	GameState game.GameState `json:"gs"`
+	Candies   []game.Candy   `json:"ca"`
+	Player    game.Snake     `json:"pl"`
+	Opponents []game.Snake   `json:"op"`
 }
 
 func PayloadFromProto(protoPayload *ProtoPayload) Payload {
-	candies := make([]game.Position, len(protoPayload.Candies))
+	candies := make([]game.Candy, len(protoPayload.Candies))
 	for i, protoCandy := range protoPayload.Candies {
-		candies[i] = positionFromProto(protoCandy)
+		candies[i] = candyFromProto(protoCandy)
 	}
 
 	opponents := make([]game.Snake, len(protoPayload.Opponents))
@@ -31,9 +31,9 @@ func PayloadFromProto(protoPayload *ProtoPayload) Payload {
 }
 
 func (payload Payload) ToProto() *ProtoPayload {
-	candies := make([]*ProtoPosition, len(payload.Candies))
+	candies := make([]*ProtoCandy, len(payload.Candies))
 	for i, candy := range payload.Candies {
-		candies[i] = positionToProto(candy)
+		candies[i] = candyToProto(candy)
 	}
 
 	opponents := make([]*ProtoSnake, len(payload.Opponents))
@@ -51,11 +51,31 @@ func (payload Payload) ToProto() *ProtoPayload {
 }
 
 // Convert Go Position to Protobuf Position
+func candyToProto(candy game.Candy) *ProtoCandy {
+	return &ProtoCandy{
+		Type:     ProtoCandyType(candy.CandyTpe),
+		Position: positionToProto(candy.Position),
+	}
+}
+
+// Convert Go Position to Protobuf Position
 func positionToProto(pos game.Position) *ProtoPosition {
 	return &ProtoPosition{
 		Y: uint32(pos.Y),
 		X: uint32(pos.X),
 	}
+}
+
+// Convert Protobuf Position to Go Position
+func candyFromProto(protoCandy *ProtoCandy) game.Candy {
+	return game.Candy{
+		CandyTpe: game.CandyTpe(protoCandy.Type),
+		Position: game.Position{
+			Y: uint16(protoCandy.Position.Y),
+			X: uint16(protoCandy.Position.X),
+		},
+	}
+
 }
 
 // Convert Protobuf Position to Go Position
